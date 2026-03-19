@@ -1,4 +1,0 @@
-study_id,title,year,organization,url,get_microdata_url,abstract,quality_flags
-90,Agricultural Household Survey 2017,2017,NISR,https://microdata.statistics.gov.rw/index.php/catalog/90,https://microdata.statistics.gov.rw/index.php/catalog/90/get_microdata,Agriculture and household indicators for policy analysis,
-68,Demographic and Health Survey 2014-2015,2015,NISR,https://microdata.statistics.gov.rw/index.php/catalog/68,https://microdata.statistics.gov.rw/index.php/catalog/68/get_microdata,Health and demographic indicators with multiple documentation resources,generic_resource_type
-109,Rwanda Population and Housing Census 2022,2022,NISR,https://microdata.statistics.gov.rw/index.php/catalog/109,https://microdata.statistics.gov.rw/index.php/catalog/109/get_microdata,Population and housing census findings by geography and population groups,missing_study_type;missing_scope_notes

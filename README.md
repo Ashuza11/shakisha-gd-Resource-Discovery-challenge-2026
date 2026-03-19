@@ -173,7 +173,7 @@ Confident citing: knows data limitations before presenting to stakeholders
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/<your-org>/team-shakisha-gdrh-2026.git
-cd team-shakisha-gdrh-2026/starter-app
+cd team-shakisha-gdrh-2026/Shakisha-app
 ```
 
 ### 2. Create and activate a virtual environment
@@ -234,7 +234,7 @@ Expected: **5 tests passing, 0 failures**
 ## Project Structure
 
 ```
-starter-app/
+Shakisha-app/
 ├── app.py                      # Entry point — Home page
 ├── requirements.txt            # Python dependencies
 ├── .env.example                # Environment variable template
