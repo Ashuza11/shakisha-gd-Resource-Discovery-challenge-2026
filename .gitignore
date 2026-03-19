@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables — never commit real keys
+.env
+
+# Extracted full dataset (too large, use the zip)
+starter-app/data/full/
+
+# Streamlit cache
+.streamlit/secrets.toml
+starter-app/.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
