@@ -1,0 +1,4 @@
+study_id,title,quality_flags,missing_field_count,resource_count,resource_quality_flags
+90,Agricultural Household Survey 2017,,0,2,
+68,Demographic and Health Survey 2014-2015,generic_resource_type,1,19,generic_resource_type
+109,Rwanda Population and Housing Census 2022,missing_study_type;missing_scope_notes,2,5,
