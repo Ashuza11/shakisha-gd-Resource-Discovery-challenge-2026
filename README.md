@@ -209,8 +209,8 @@ Restart app → expanded catalog live immediately
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/<your-org>/team-shakisha-gdrh-2026.git
-cd team-shakisha-gdrh-2026/Shakisha-app
+git clone git@github.com:Ashuza11/shakisha-grb-Resource-Discovery-challenge-2026.git
+cd shakisha-grb-Resource-Discovery-challenge-2026/Shakisha-app
 ```
 
 ### 2. Create and activate a virtual environment
