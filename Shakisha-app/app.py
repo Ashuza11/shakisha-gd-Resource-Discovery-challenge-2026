@@ -1,9 +1,8 @@
+import hashlib
 import os
+import tempfile
 
 import streamlit as st
-
-from src.domains import DOMAINS
-from src.loaders import load_all_data
 
 st.set_page_config(
     page_title="Shakisha — Gender Data Discovery",
@@ -11,139 +10,34 @@ st.set_page_config(
     layout="wide",
 )
 
-# ── Load data for live stats ───────────────────────────────────────────────────
-try:
-    studies, resources, _ = load_all_data()
-    n_studies = len(studies)
-    n_resources = len(resources)
-    data_loaded = True
-except Exception:
-    n_studies = "—"
-    n_resources = "—"
-    data_loaded = False
+# ── Logo — defined inline so changes here instantly reload the logo ─────────────
+# (SVG file edits are NOT auto-detected by Streamlit; inline definition avoids that)
+_LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="240" height="52" viewBox="0 0 240 52">
+  <circle cx="18" cy="18" r="11" stroke="#000000" stroke-width="3" fill="none"/>
+  <line x1="26" y1="26" x2="35" y2="35" stroke="#000000" stroke-width="3.5" stroke-linecap="round"/>
+  <text x="44" y="25"
+        font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif"
+        font-size="26" font-weight="900" letter-spacing="3" fill="#000000">Shakisha</text>
+  <text x="44" y="43"
+        font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif"
+        font-size="11" letter-spacing="0.5" fill="#444444">Gender Data Discovery</text>
+</svg>"""
 
-AI_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
+_logo_bytes = _LOGO_SVG.encode("utf-8")
+_logo_hash = hashlib.md5(_logo_bytes).hexdigest()[:12]
+_logo_path = os.path.join(tempfile.gettempdir(), f"shakisha_logo_{_logo_hash}.svg")
+if not os.path.exists(_logo_path):
+    with open(_logo_path, "wb") as _f:
+        _f.write(_logo_bytes)
 
-# ── Sidebar branding ───────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🔍 Shakisha")
-    st.caption("Gender Data Discovery · Rwanda")
-    st.divider()
-    st.caption("Built at **GRB Hackathon 2026**")
-    st.caption("Muhigiri Ashuza Albin · Ingabire Vanessa")
+st.logo(_logo_path, size="large")
 
-# ── Hero ───────────────────────────────────────────────────────────────────────
-col_hero, col_logo = st.columns([3, 1])
-with col_hero:
-    st.title("🔍 Shakisha")
-    st.markdown("##### *Kinyarwanda: \"to search · to discover\"*")
-    st.markdown(
-        "**AI-powered gender data discovery for Rwanda.** "
-        "Find the study you need, understand it instantly, "
-        "and turn it into an advocacy brief — in minutes, not hours."
-    )
-with col_logo:
-    st.markdown("")
-    st.markdown("")
-    st.markdown(
-        """
-        <div style='text-align:right; color:#888; font-size:0.8em;'>
-        Built by<br><strong>Team Shakisha</strong><br>GRB Hackathon 2026<br>Kigali, Rwanda
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+pg = st.navigation([
+    st.Page("pages/0_Home.py",           title="Home",           icon="🏠"),
+    st.Page("pages/1_Discovery.py",      title="Discovery",      icon="🔍"),
+    st.Page("pages/2_Dashboard.py",      title="Analytics",      icon="📊"),
+    st.Page("pages/3_Data_Quality.py",   title="Data Quality",   icon="🛡️"),
+    st.Page("pages/4_Advocacy_Brief.py", title="Advocacy Brief", icon="📝"),
+])
 
-st.divider()
-
-# ── Live catalog stats ─────────────────────────────────────────────────────────
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Studies in catalog", n_studies)
-c2.metric("Total resources", n_resources)
-active_count = sum(1 for d in DOMAINS.values() if d["status"] == "active")
-c3.metric("Active domains", active_count)
-c4.metric("AI search", "✅ On" if AI_AVAILABLE else "⚠️ Off")
-
-st.divider()
-
-# ── Domain roadmap ─────────────────────────────────────────────────────────────
-st.subheader("Domain coverage")
-st.caption("Domains are validated and added one at a time to ensure data accuracy.")
-
-STATUS_STYLE = {
-    "active":      ("🟢", "Active",      "#d4edda", "#155724"),
-    "coming_soon": ("🔜", "Coming soon", "#fff3cd", "#856404"),
-    "planned":     ("📋", "Planned",     "#f8f9fa", "#6c757d"),
-}
-
-cols = st.columns(len(DOMAINS))
-for col, (key, cfg) in zip(cols, DOMAINS.items()):
-    icon, label, bg, fg = STATUS_STYLE[cfg["status"]]
-    with col:
-        st.markdown(
-            f"""
-            <div style='background:{bg}; border-radius:8px; padding:12px; text-align:center;'>
-                <div style='font-size:1.6em;'>{cfg['emoji']}</div>
-                <div style='font-weight:bold; color:{fg}; font-size:0.85em;'>{cfg['name']}</div>
-                <div style='color:{fg}; font-size:0.75em;'>{icon} {label}</div>
-                <div style='color:#666; font-size:0.7em; margin-top:4px;'>{cfg['study_count_hint']} studies</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-st.divider()
-
-# ── How it works ───────────────────────────────────────────────────────────────
-st.subheader("How it works")
-
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown("### 1️⃣ Choose a domain")
-    st.markdown("Select a validated data domain from the sidebar. Each domain contains curated, quality-checked studies from NISR.")
-with col2:
-    st.markdown("### 2️⃣ Search")
-    st.markdown("Type a plain-language question. AI interprets your intent and filters the catalog — no need to guess keywords.")
-with col3:
-    st.markdown("### 3️⃣ Evaluate")
-    st.markdown("Each result shows a **quality badge**, abstract snippet, source link, and an AI explanation of why it's relevant.")
-with col4:
-    st.markdown("### 4️⃣ Act")
-    st.markdown("Click **Generate Brief** to get an AI-written advocacy brief with key findings, data gaps, and a ready-to-cite citation.")
-
-st.divider()
-
-# ── Demo scenario ──────────────────────────────────────────────────────────────
-with st.expander("▶ Try this demo scenario", expanded=True):
-    st.markdown(
-        """
-**Scenario:** You are a CSO officer preparing a brief on women's workforce participation for the Ministry of Gender.
-
-1. Open **Discovery** → domain is pre-set to **Labour & Employment**
-2. Search: *"women workforce participation Rwanda after 2019"*
-3. Review the Rwanda Labour Force Survey results — check quality badge and abstract
-4. Click **Generate Brief** → receive a structured advocacy brief in ~10 seconds
-5. Download as `.txt` → paste directly into your proposal or policy memo
-"""
-    )
-
-st.info("👈 Navigate using the sidebar: **Discovery → Analytics → Data Quality → Advocacy Brief**")
-
-if not AI_AVAILABLE:
-    st.warning(
-        "**AI features are disabled.** "
-        "Set `ANTHROPIC_API_KEY` in your environment to enable NLP search and brief generation. "
-        "See `.env.example` for setup instructions."
-    )
-
-if not data_loaded:
-    st.error(
-        "**Data failed to load.** "
-        "Ensure `data/sample/` (or `data/full/`) contains the required CSV files."
-    )
-
-st.divider()
-st.caption(
-    "Shakisha · GRB Gender Data Resource Discovery Hackathon · March 19–20, 2026, Kigali, Rwanda  \n"
-    "Data source: [NISR Microdata Catalog](https://microdata.statistics.gov.rw/)"
-)
+pg.run()

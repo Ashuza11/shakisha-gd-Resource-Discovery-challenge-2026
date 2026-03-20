@@ -20,7 +20,7 @@ def _get_client() -> anthropic.Anthropic:
                 "ANTHROPIC_API_KEY is not set. "
                 "Add it to your .env file or export it in your shell."
             )
-        _client = anthropic.Anthropic(api_key=api_key)
+        _client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
     return _client
 
 

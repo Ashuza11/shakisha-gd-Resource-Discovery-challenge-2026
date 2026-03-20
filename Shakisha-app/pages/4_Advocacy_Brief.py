@@ -8,8 +8,6 @@ from src.ai import advocacy_brief
 from src.loaders import load_all_data
 from src.quality_badges import parse_quality_flags, quality_level
 
-st.set_page_config(page_title="Shakisha — Advocacy Brief", layout="wide")
-
 AI_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
 
 studies, resources, quality = load_all_data()

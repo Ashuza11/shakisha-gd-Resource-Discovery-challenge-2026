@@ -10,8 +10,6 @@ from src.link_checker import check_url
 from src.loaders import get_data_dir, load_all_data
 from src.quality_badges import parse_quality_flags, quality_level
 
-st.set_page_config(page_title="Shakisha — Data Quality", layout="wide")
-
 # ── Load data ──────────────────────────────────────────────────────────────────
 studies, resources, quality = load_all_data()
 quality = quality.copy()

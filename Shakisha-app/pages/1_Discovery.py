@@ -11,8 +11,6 @@ from src.filters import apply_study_filters, filter_resources_by_type
 from src.loaders import get_data_dir, load_all_data
 from src.quality_badges import parse_quality_flags, quality_level
 
-st.set_page_config(page_title="Shakisha — Discovery", layout="wide")
-
 # ── Load data ──────────────────────────────────────────────────────────────────
 studies, resources, quality = load_all_data()
 quality_map = (
@@ -24,10 +22,6 @@ AI_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🔍 Shakisha")
-    st.caption("Gender Data Discovery · Rwanda")
-    st.divider()
-
     # Domain selector
     st.markdown("#### Domain")
 
@@ -54,28 +48,6 @@ with st.sidebar:
                 st.caption(f"{status_badge} {cfg['emoji']} **{cfg['name']}** — {cfg['study_count_hint']} studies")
 
     st.divider()
-    st.markdown("#### Filters")
-    year_min = st.number_input("Year from", value=2000, step=1)
-    year_max = st.number_input("Year to", value=2026, step=1)
-
-    org_options = ["All"] + sorted(
-        studies["organization"].fillna("Unknown").astype(str).str.strip().unique().tolist()
-    )
-    org_filter = st.selectbox("Organization", org_options)
-
-    resource_type = st.selectbox(
-        "Resource type",
-        ["all"] + sorted(
-            resources["type"].fillna("unknown").astype(str).str.lower().unique().tolist()
-        ),
-    )
-    quality_filter = st.selectbox(
-        "Quality level",
-        ["all", "good", "warning", "critical"],
-        help="🟢 Good = all fields present · 🟡 Warning = 1–2 missing fields · 🔴 Critical = 3+ missing fields",
-    )
-    sort_order = st.selectbox("Sort results by", ["Newest first", "Oldest first", "By quality"])
-    st.divider()
     ai_status = "✅ Enabled" if AI_AVAILABLE else "⚠️ Disabled — set ANTHROPIC_API_KEY"
     st.caption(f"AI search: {ai_status}")
 
@@ -100,6 +72,67 @@ query = st.text_input(
         else "Keyword search across titles and abstracts."
     ),
 )
+
+# ── Filters ────────────────────────────────────────────────────────────────────
+fc1, fc2, fc3 = st.columns(3)
+with fc1:
+    year_min = st.number_input("Year from", value=2000, step=1)
+with fc2:
+    year_max = st.number_input("Year to", value=2026, step=1)
+with fc3:
+    org_options = ["All"] + sorted(
+        studies["organization"].fillna("Unknown").astype(str).str.strip().unique().tolist()
+    )
+    org_filter = st.selectbox("Organization", org_options)
+
+fc4, fc5, fc6 = st.columns(3)
+with fc4:
+    resource_type = st.selectbox(
+        "Resource type",
+        ["all"] + sorted(
+            resources["type"].fillna("unknown").astype(str).str.lower().unique().tolist()
+        ),
+    )
+with fc5:
+    quality_filter = st.selectbox(
+        "Quality level",
+        ["all", "good", "warning", "critical"],
+        help="🟢 Good = all fields present · 🟡 Warning = 1–2 missing fields · 🔴 Critical = 3+ missing fields",
+    )
+with fc6:
+    sort_order = st.selectbox("Sort results by", ["Newest first", "Oldest first", "By quality"])
+
+# District filter — row 3
+RWANDA_DISTRICTS = [
+    "Bugesera", "Burera", "Gakenke", "Gasabo", "Gatsibo", "Gicumbi", "Gisagara",
+    "Huye", "Kamonyi", "Karongi", "Kayonza", "Kicukiro", "Kirehe", "Muhanga",
+    "Musanze", "Ngoma", "Ngororero", "Nyabihu", "Nyagatare", "Nyamagabe",
+    "Nyamasheke", "Nyanza", "Nyarugenge", "Nyaruguru", "Rubavu", "Ruhango",
+    "Rulindo", "Rusizi", "Rutsiro", "Rwamagana",
+]
+fc_d1, fc_d2 = st.columns([2, 4])
+with fc_d1:
+    district_filter = st.selectbox(
+        "District / geographic scope",
+        options=["All Rwanda"] + ["📍 Has district-level data"] + RWANDA_DISTRICTS,
+        help=(
+            "Most studies cover all of Rwanda nationally. "
+            "'Has district-level data' shows studies that produce district-level estimates. "
+            "Selecting a specific district searches titles, abstracts, and coverage notes."
+        ),
+    )
+with fc_d2:
+    if district_filter not in ("All Rwanda", "📍 Has district-level data"):
+        st.info(
+            f"Searching for studies mentioning **{district_filter}** district "
+            "in titles, abstracts, and geographic coverage. "
+            "Most NISR surveys are national but may include district-level estimates."
+        )
+    elif district_filter == "📍 Has district-level data":
+        st.info(
+            "Showing studies that explicitly provide **district-level disaggregation** — "
+            "e.g. Labour Force Survey, EICV, DHS, Agricultural surveys."
+        )
 
 # ── Domain pre-filter ──────────────────────────────────────────────────────────
 domain_mask = filter_by_domain(
@@ -126,12 +159,18 @@ effective_year_min = ai_params.get("year_min") or int(year_min)
 effective_year_max = ai_params.get("year_max") or int(year_max)
 
 # ── Apply filters ──────────────────────────────────────────────────────────────
+_district_param = (
+    "__district_level__" if district_filter == "📍 Has district-level data"
+    else "" if district_filter == "All Rwanda"
+    else district_filter
+)
 filtered = apply_study_filters(
     domain_studies,
     query=effective_query,
     year_min=effective_year_min,
     year_max=effective_year_max,
     organization="" if org_filter == "All" else org_filter,
+    district=_district_param,
 )
 res_filtered = filter_resources_by_type(resources, resource_type)
 
@@ -212,15 +251,20 @@ def render_card(row: dict, study_resources: list[dict]) -> None:
                     for f in flags:
                         st.caption(f"• {f}")
 
-        # AI relevance explanation (lazy — only on demand)
+        # AI relevance explanation — button-triggered to avoid running on every render
         if query.strip() and AI_AVAILABLE:
             with st.expander("Why is this relevant?", expanded=False):
-                with st.spinner("Generating explanation..."):
-                    try:
-                        explanation = explain_study(dict(row), query)
-                        st.write(explanation)
-                    except Exception:
-                        st.caption("AI explanation unavailable.")
+                explain_key = f"explain_{row['study_id']}_{query}"
+                if explain_key not in st.session_state:
+                    if st.button("Get AI explanation", key=f"btn_explain_{row['study_id']}"):
+                        with st.spinner("Generating explanation..."):
+                            try:
+                                st.session_state[explain_key] = explain_study(dict(row), query)
+                            except Exception:
+                                st.session_state[explain_key] = "AI explanation unavailable."
+                        st.rerun()
+                if explain_key in st.session_state:
+                    st.write(st.session_state[explain_key])
 
         # Abstract snippet
         abstract = str(row.get("abstract", ""))
@@ -239,6 +283,27 @@ def render_card(row: dict, study_resources: list[dict]) -> None:
             if st.button("Generate brief →", key=f"brief_{row['study_id']}", use_container_width=True):
                 st.session_state["selected_study_id"] = row["study_id"]
                 st.switch_page("pages/4_Advocacy_Brief.py")
+
+        # Copyable URLs
+        if study_url or microdata_url:
+            with st.expander("Copy links", expanded=False):
+                if study_url:
+                    st.caption("Source URL")
+                    st.code(study_url, language=None)
+                if microdata_url:
+                    st.caption("Microdata URL")
+                    st.code(microdata_url, language=None)
+
+        # Citation
+        with st.expander("Citation", expanded=False):
+            cite_year = str(year) if str(year) != "nan" else "n.d."
+            cite_org = str(org) if str(org) != "nan" else "NISR"
+            citation_text = (
+                f"{cite_org}. ({cite_year}). {title}. "
+                f"National Institute of Statistics of Rwanda. "
+                f"Retrieved from {study_url or 'https://microdata.statistics.gov.rw'}"
+            )
+            st.code(citation_text, language=None)
 
 
 # ── Render cards ───────────────────────────────────────────────────────────────

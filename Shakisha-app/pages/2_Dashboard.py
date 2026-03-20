@@ -9,8 +9,6 @@ from src.domains import DOMAINS, filter_by_domain, get_active_domains
 from src.loaders import get_data_dir, load_all_data
 from src.quality_badges import quality_level
 
-st.set_page_config(page_title="Shakisha — Analytics", layout="wide")
-
 # ── Load data ──────────────────────────────────────────────────────────────────
 studies, resources, quality = load_all_data()
 studies["year_num"] = pd.to_numeric(studies.get("year"), errors="coerce")
@@ -19,9 +17,6 @@ quality["q_level"] = quality["q_missing"].apply(quality_level)
 
 # ── Sidebar branding + domain selector ────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🔍 Shakisha")
-    st.caption("Gender Data Discovery · Rwanda")
-    st.divider()
     active = get_active_domains()
     selected_domain = st.selectbox(
         "Domain",
@@ -186,3 +181,128 @@ if "organization" in domain_studies.columns:
     st.plotly_chart(fig_org, use_container_width=True)
 else:
     st.info("Organization data not available.")
+
+st.divider()
+
+# ── Rwanda district coverage map ───────────────────────────────────────────────
+st.subheader("Geographic coverage — Rwanda districts")
+st.caption("Study coverage mapped across Rwanda's 30 districts and 5 provinces.")
+
+# District centroids (lat, lon, province)
+DISTRICT_CENTROIDS = [
+    ("Nyarugenge", -1.9441, 30.0619, "Kigali"),
+    ("Gasabo",     -1.8667, 30.1167, "Kigali"),
+    ("Kicukiro",   -2.0000, 30.1000, "Kigali"),
+    ("Burera",     -1.3500, 29.8500, "Northern"),
+    ("Gakenke",    -1.7000, 29.7500, "Northern"),
+    ("Gicumbi",    -1.5500, 30.0833, "Northern"),
+    ("Musanze",    -1.4996, 29.6340, "Northern"),
+    ("Rulindo",    -1.7333, 30.1167, "Northern"),
+    ("Gisagara",   -2.6000, 29.8167, "Southern"),
+    ("Huye",       -2.5953, 29.7396, "Southern"),
+    ("Kamonyi",    -2.0167, 29.8833, "Southern"),
+    ("Muhanga",    -2.0833, 29.7667, "Southern"),
+    ("Nyamagabe",  -2.4667, 29.5500, "Southern"),
+    ("Nyanza",     -2.3500, 29.7500, "Southern"),
+    ("Nyaruguru",  -2.7167, 29.5833, "Southern"),
+    ("Ruhango",    -2.2000, 29.7833, "Southern"),
+    ("Bugesera",   -2.2000, 30.2000, "Eastern"),
+    ("Gatsibo",    -1.5833, 30.4333, "Eastern"),
+    ("Kayonza",    -1.8833, 30.5333, "Eastern"),
+    ("Kirehe",     -2.1667, 30.7000, "Eastern"),
+    ("Ngoma",      -2.1667, 30.5167, "Eastern"),
+    ("Nyagatare",  -1.2833, 30.3167, "Eastern"),
+    ("Rwamagana",  -1.9488, 30.4349, "Eastern"),
+    ("Karongi",    -2.0833, 29.3667, "Western"),
+    ("Ngororero",  -1.8167, 29.5500, "Western"),
+    ("Nyabihu",    -1.6167, 29.5000, "Western"),
+    ("Nyamasheke", -2.4333, 29.1167, "Western"),
+    ("Rubavu",     -1.6823, 29.3609, "Western"),
+    ("Rusizi",     -2.4833, 28.9000, "Western"),
+    ("Rutsiro",    -1.9167, 29.3167, "Western"),
+]
+
+PROVINCE_COLORS = {
+    "Kigali":   "#E63946",
+    "Northern": "#2A9D8F",
+    "Southern": "#E9C46A",
+    "Eastern":  "#F4A261",
+    "Western":  "#264653",
+}
+
+
+def _parse_province(coverage_text: str) -> str:
+    """Return province key from geographic_coverage text, or 'all' for national."""
+    if not coverage_text or str(coverage_text).strip().lower() in ("nan", "rwanda", "national", ""):
+        return "all"
+    t = str(coverage_text).lower()
+    if "kigali" in t:
+        return "Kigali"
+    if "north" in t:
+        return "Northern"
+    if "south" in t:
+        return "Southern"
+    if "east" in t:
+        return "Eastern"
+    if "west" in t:
+        return "Western"
+    return "all"
+
+
+# Count studies per province from the domain slice
+province_counts: dict[str, int] = {p: 0 for p in PROVINCE_COLORS}
+for cov in domain_studies.get("geographic_coverage", pd.Series(dtype=str)).fillna("").astype(str):
+    p = _parse_province(cov)
+    if p == "all":
+        for prov in province_counts:
+            province_counts[prov] += 1
+    elif p in province_counts:
+        province_counts[p] += 1
+
+# Build district dataframe — assign each district its province study count
+district_rows = []
+for name, lat, lon, province in DISTRICT_CENTROIDS:
+    district_rows.append({
+        "district": name,
+        "lat": lat,
+        "lon": lon,
+        "province": province,
+        "study_count": province_counts.get(province, 0),
+    })
+district_df = pd.DataFrame(district_rows)
+
+fig_map = px.scatter_geo(
+    district_df,
+    lat="lat",
+    lon="lon",
+    hover_name="district",
+    size="study_count",
+    color="province",
+    color_discrete_map=PROVINCE_COLORS,
+    size_max=28,
+    hover_data={"lat": False, "lon": False, "study_count": True, "province": True},
+    title=f"{domain_cfg['name']} — study coverage by district",
+)
+fig_map.update_geos(
+    lataxis_range=[-3.1, -1.0],
+    lonaxis_range=[28.7, 31.0],
+    showland=True,
+    landcolor="rgb(240, 242, 238)",
+    showocean=False,
+    showcountries=True,
+    countrycolor="#aaaaaa",
+    showcoastlines=False,
+    bgcolor="rgba(0,0,0,0)",
+    projection_type="natural earth",
+)
+fig_map.update_layout(
+    height=480,
+    margin=dict(t=40, b=10, l=0, r=0),
+    legend=dict(title="Province", orientation="v"),
+    geo=dict(center=dict(lat=-1.94, lon=29.87)),
+)
+st.plotly_chart(fig_map, use_container_width=True)
+st.caption(
+    "Bubble size = number of studies covering each district. "
+    "National studies (geographic coverage = 'Rwanda') count toward all districts."
+)
