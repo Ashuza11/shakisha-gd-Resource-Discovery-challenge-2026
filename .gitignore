@@ -15,6 +15,7 @@ env/
 
 # Extracted full dataset (too large, use the zip)
 starter-app/data/full/
+Shakisha-app/data/full/
 
 # Streamlit cache
 .streamlit/secrets.toml
