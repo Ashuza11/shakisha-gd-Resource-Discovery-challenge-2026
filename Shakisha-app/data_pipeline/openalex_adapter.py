@@ -175,7 +175,7 @@ def normalize_work(work: dict, domain: str) -> tuple[dict, list[dict]]:
     """Convert an OpenAlex work to (study_row, resource_rows) matching Shakisha schema."""
     oa_id = work.get("id", "")
     study_id = _make_study_id(oa_id)
-    title = work.get("display_name", "Untitled")
+    title = work.get("display_name") or "Untitled"
     year = work.get("publication_year")
     abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
     source = _get_source_name(work)

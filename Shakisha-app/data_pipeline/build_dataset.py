@@ -1,11 +1,14 @@
 """
 Merge all pipeline sources with the base NISR dataset into data/full/.
 
-Sources merged (in priority order — NISR wins on duplicates):
-  1. data/full/          — base NISR microdata catalog (authoritative)
-  2. data/pipeline_sources/openalex/  — OpenAlex research papers
+Sources merged (in priority order — NISR base wins on duplicates):
+  1. data/full/                        — base NISR microdata catalog (authoritative)
+  2. data/pipeline_sources/nisr_crawl/ — new studies from NISR crawler
+  3. data/pipeline_sources/openalex/   — OpenAlex research papers
 
-Run after openalex_adapter.py:
+Run adapters first, then merge:
+    python data_pipeline/nisr_crawler.py
+    python data_pipeline/openalex_adapter.py
     python data_pipeline/build_dataset.py
     python data_pipeline/build_dataset.py --dry-run
 """
@@ -19,8 +22,8 @@ import pandas as pd
 
 NISR_DIR = Path("data/full")
 PIPELINE_SOURCES = [
-    Path("data/pipeline_sources/openalex"),
-    # Add more source directories here as new adapters are built:
+    Path("data/pipeline_sources/nisr_crawl"),   # NISR crawler — new gender-relevant studies
+    Path("data/pipeline_sources/openalex"),      # OpenAlex research papers
     # Path("data/pipeline_sources/worldbank"),
     # Path("data/pipeline_sources/ilo"),
 ]

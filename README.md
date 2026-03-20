@@ -12,7 +12,7 @@
 | Name | Role |
 |---|---|
 | Muhigiri Ashuza Albin | Developer & AI Engineer |
-| Ingabire Vanessa | [customize] |
+| Ingabire Vanessa | Researcher & UX |
 
 ---
 
@@ -20,9 +20,10 @@
 
 Civil Society Organizations (CSOs) and policy actors in Rwanda lose critical advocacy time searching for gender data across fragmented, PDF-heavy sources. **Shakisha** solves this by combining intelligent discovery with AI-generated policy output — so a CSO officer can go from a question to a ready-to-use advocacy brief in minutes, not hours.
 
-**One platform. Two superpowers:**
-- **Discover** — Natural language search over the full NISR gender data catalog
+**One platform. Three superpowers:**
+- **Discover** — Natural language search over the full NISR gender data catalog + academic papers
 - **Act** — AI-generated advocacy briefs from any dataset, ready for policymakers
+- **Grow** — Live data pipeline that crawls NISR and pulls from OpenAlex to keep the catalog current
 
 ---
 
@@ -51,7 +52,7 @@ User types: "women's labour force participation in rural Rwanda after 2018"
      ↓
 AI interprets the query (Claude API)
      ↓
-Filters the NISR catalog by: keywords + year range + topic relevance
+Filters the catalog by: keywords + year range + topic relevance
      ↓
 Returns: ranked result cards with title, year, org, quality badge, source links
      ↓
@@ -73,7 +74,7 @@ Outputs structured brief:
   - Recommended advocacy action
   - Proper citation (NISR format)
      ↓
-User copies or exports the brief
+User copies, exports to PDF, or saves the brief (stored in data/briefs/)
 ```
 
 ### Workflow 3 — Catalog Analytics
@@ -91,7 +92,7 @@ Uses gap insight to argue for new data collection in advocacy
 ```
 User opens Data Quality page
      ↓
-Sees: color-coded quality badges per study (🟢 good / 🟡 warning / 🔴 critical)
+Sees: color-coded quality badges per study (good / warning / critical)
      ↓
 Checks: which fields are missing, what quality caveats apply
      ↓
@@ -100,31 +101,51 @@ Validates: source URL availability (link checker)
 Confident citing: knows data limitations before presenting to stakeholders
 ```
 
+### Workflow 5 — Data Pipeline
+```
+Maintainer runs: python data_pipeline/nisr_crawler.py
+     ↓
+Crawler fetches new gender-relevant studies from NISR microdata portal
+(skips studies already in the catalog — incremental, safe to re-run)
+     ↓
+Maintainer runs: python data_pipeline/openalex_adapter.py
+     ↓
+Adapter pulls academic papers from OpenAlex (no API key required)
+     ↓
+Maintainer runs: python data_pipeline/build_dataset.py
+     ↓
+Sources merged into data/full/ — NISR base wins on duplicates
+     ↓
+Restart app → expanded catalog live immediately
+```
+
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    SHAKISHA — STREAMLIT APP                      │
-│                                                                  │
-│  ┌──────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  │
-│  │  Home    │  │ Discovery  │  │ Analytics  │  │  Advocacy  │  │
-│  │ page 0   │  │  page 1    │  │ page 2 + 3 │  │  Brief     │  │
-│  │          │  │            │  │            │  │  page 4    │  │
-│  │ value    │  │ NLP search │  │ coverage   │  │ AI-powered │  │
-│  │ prop +   │  │ + result   │  │ gaps +     │  │ policy     │  │
-│  │ demo     │  │ cards with │  │ quality    │  │ brief      │  │
-│  │ guide    │  │ badges     │  │ trust view │  │ generator  │  │
-│  └──────────┘  └─────┬──────┘  └────────────┘  └──────┬─────┘  │
-│                       │   st.session_state.study_id    │        │
-│                       └────────────────────────────────┘        │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                      SHAKISHA — STREAMLIT APP                         │
+│                                                                       │
+│  ┌──────────┐  ┌────────────┐  ┌────────────┐  ┌────────┐  ┌──────┐  │
+│  │  Home    │  │ Discovery  │  │ Analytics  │  │Advocacy│  │Data  │  │
+│  │ page 0   │  │  page 1    │  │ page 2 + 3 │  │Brief   │  │Pipe- │  │
+│  │          │  │            │  │            │  │page 4  │  │line  │  │
+│  │ value    │  │ NLP search │  │ coverage   │  │AI brief│  │page 5│  │
+│  │ prop +   │  │ + result   │  │ gaps +     │  │+ PDF   │  │source│  │
+│  │ demo     │  │ cards with │  │ quality    │  │export  │  │status│  │
+│  │ guide    │  │ badges     │  │ trust view │  │        │  │      │  │
+│  └──────────┘  └─────┬──────┘  └────────────┘  └───┬────┘  └──────┘  │
+│                       │   st.session_state.study_id │                 │
+│                       └─────────────────────────────┘                 │
+└──────────────────────────────────────────────────────────────────────┘
                               │
-         ┌────────────────────┼─────────────────────┐
-         ▼                    ▼                     ▼
-   src/ai.py            src/filters.py        src/loaders.py
-   (Claude API)         (pandas filtering)    (CSV loading)
+         ┌────────────────────┼──────────────────────┐
+         ▼                    ▼                      ▼
+   src/ai.py            src/filters.py         src/loaders.py
+   (Claude API)         (pandas filtering)     (CSV loading)
+   src/domains.py       src/brief_store.py     src/quality_badges.py
+   (domain registry)    (brief persistence)    src/link_checker.py
          │
    ┌─────▼──────────────────┐
    │      CLAUDE API         │
@@ -135,17 +156,26 @@ Confident citing: knows data limitations before presenting to stakeholders
    │  advocacy_brief()       │  ← structured policy output
    └─────────────────────────┘
          │
-   ┌─────▼──────────────────┐
-   │       DATA LAYER        │
-   │                         │
-   │  studies.csv            │
-   │  study_resources.csv    │  ← joined in-memory via pandas
-   │  quality_report.csv     │
-   │                         │
-   │  Source: NISR Microdata │
-   │  microdata.statistics   │
-   │  .gov.rw                │
-   └─────────────────────────┘
+   ┌─────▼────────────────────────────────────────────────┐
+   │                    DATA LAYER                          │
+   │                                                        │
+   │  data/full/studies.csv          (~2,740 studies)       │
+   │  data/full/study_resources.csv  (~4,384 resources)     │
+   │  data/full/quality_report.csv                          │
+   │                                                        │
+   │  Sources:                                              │
+   │    NISR Microdata (authoritative base)                 │
+   │    NISR Crawler (incremental — new studies)            │
+   │    OpenAlex (peer-reviewed research papers)            │
+   └────────────────────────────────────────────────────────┘
+         │
+   ┌─────▼──────────────────────────────────────────────────┐
+   │                 DATA PIPELINE                           │
+   │                                                         │
+   │  data_pipeline/nisr_crawler.py    ← crawl NISR portal  │
+   │  data_pipeline/openalex_adapter.py ← fetch OpenAlex    │
+   │  data_pipeline/build_dataset.py   ← merge all sources  │
+   └─────────────────────────────────────────────────────────┘
 ```
 
 ### Module Responsibilities
@@ -157,10 +187,17 @@ Confident citing: knows data limitations before presenting to stakeholders
 | `src/quality_badges.py` | Parse semicolon-separated quality flags; classify good/warning/critical |
 | `src/link_checker.py` | HTTP HEAD validation for source URLs (8s timeout) |
 | `src/ai.py` | All Claude API calls — query interpretation, relevance explanation, advocacy brief |
+| `src/domains.py` | Domain registry (Labour, Agriculture, Health, etc.) with keywords and advocacy context |
+| `src/brief_store.py` | Persist, list, load, and delete generated briefs as JSON in `data/briefs/` |
+| `pages/0_Home.py` | Landing page — value proposition and demo guide |
 | `pages/1_Discovery.py` | NLP search UI + filtered result cards |
 | `pages/2_Dashboard.py` | Metrics, year trend, resource type breakdown, coverage gap chart |
 | `pages/3_Data_Quality.py` | Visual quality badges, missing field heatmap, link checker UI |
-| `pages/4_Advocacy_Brief.py` | Study detail + Claude-generated policy brief + export |
+| `pages/4_Advocacy_Brief.py` | Study detail + Claude-generated policy brief + PDF export |
+| `pages/5_Pipeline.py` | Data pipeline status dashboard — source cards, run commands, recent ingestions |
+| `data_pipeline/nisr_crawler.py` | Crawl `microdata.statistics.gov.rw` for new gender-relevant studies (incremental, resumable) |
+| `data_pipeline/openalex_adapter.py` | Fetch peer-reviewed Rwanda gender/labour/agriculture papers from OpenAlex API |
+| `data_pipeline/build_dataset.py` | Merge all pipeline sources into `data/full/`; NISR base wins on duplicates |
 
 ---
 
@@ -192,6 +229,8 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Dependencies include: `streamlit`, `pandas`, `plotly`, `anthropic`, `requests`, `python-dotenv`, `fpdf2` (PDF export), `beautifulsoup4` + `lxml` (NISR crawler).
+
 ### 4. Set your API key
 ```bash
 # Linux / macOS
@@ -208,26 +247,12 @@ Alternatively, copy `.env.example` to `.env` and fill in your key.
 streamlit run app.py
 ```
 
-The app opens at `http://localhost:8501`.
+The app opens at `http://localhost:8501`. The full dataset (~2,740 studies) is loaded by default from `data/full/`.
 
-### 6. (Optional) Load the full dataset
-```bash
-# Unzip the full NISR catalog
-unzip data/full-data.zip -d data/full
-
-# Set the data directory
-export HACKATHON_DATA_DIR=data/full
-
-# Restart the app
-streamlit run app.py
-```
-
-### 7. Run the test suite
+### 6. Run the test suite
 ```bash
 python -m unittest discover -s tests -v
 ```
-
-Expected: **5 tests passing, 0 failures**
 
 ---
 
@@ -235,33 +260,50 @@ Expected: **5 tests passing, 0 failures**
 
 ```
 Shakisha-app/
-├── app.py                      # Entry point — Home page
-├── requirements.txt            # Python dependencies
-├── .env.example                # Environment variable template
+├── app.py                          # Entry point — navigation setup + logo
+├── requirements.txt                # Python dependencies
+├── .env.example                    # Environment variable template
 ├── .streamlit/
-│   └── config.toml             # Streamlit theme and server config
+│   └── config.toml                 # Streamlit theme and server config
 ├── pages/
-│   ├── 1_Discovery.py          # NLP search + result cards
-│   ├── 2_Dashboard.py          # Analytics and coverage charts
-│   ├── 3_Data_Quality.py       # Quality badges and trust signals
-│   └── 4_Advocacy_Brief.py     # AI-powered policy brief generator
+│   ├── 0_Home.py                   # Landing page
+│   ├── 1_Discovery.py              # NLP search + result cards
+│   ├── 2_Dashboard.py              # Analytics and coverage charts
+│   ├── 3_Data_Quality.py           # Quality badges and trust signals
+│   ├── 4_Advocacy_Brief.py         # AI-powered policy brief + PDF export
+│   └── 5_Pipeline.py               # Data pipeline status and run commands
 ├── src/
-│   ├── loaders.py              # CSV loading and validation
-│   ├── filters.py              # Study and resource filtering
-│   ├── quality_badges.py       # Quality flag parsing and classification
-│   ├── link_checker.py         # HTTP URL validation
-│   └── ai.py                   # Claude API integration
+│   ├── loaders.py                  # CSV loading and validation
+│   ├── filters.py                  # Study and resource filtering
+│   ├── quality_badges.py           # Quality flag parsing and classification
+│   ├── link_checker.py             # HTTP URL validation
+│   ├── ai.py                       # Claude API integration
+│   ├── domains.py                  # Domain registry with keywords and advocacy context
+│   └── brief_store.py              # Persist and retrieve generated briefs (data/briefs/)
+├── data_pipeline/
+│   ├── nisr_crawler.py             # Crawl NISR portal for new gender-relevant studies
+│   ├── openalex_adapter.py         # Fetch Rwanda research papers from OpenAlex
+│   └── build_dataset.py            # Merge all pipeline sources into data/full/
 ├── data/
-│   ├── sample/                 # 3-study quick-start dataset
+│   ├── full/                       # Live catalog (~2,740 studies, ~4,384 resources)
 │   │   ├── studies.csv
 │   │   ├── study_resources.csv
 │   │   └── quality_report.csv
-│   └── full-data.zip           # Full NISR catalog (~50–100 studies)
+│   ├── full_backup/                # Auto-backup created by build_dataset.py before each merge
+│   ├── pipeline_sources/
+│   │   ├── nisr_crawl/             # Output from nisr_crawler.py
+│   │   └── openalex/               # Output from openalex_adapter.py
+│   ├── sample/                     # 3-study quick-start dataset
+│   │   ├── studies.csv
+│   │   ├── study_resources.csv
+│   │   └── quality_report.csv
+│   ├── briefs/                     # Generated advocacy briefs (JSON, created at runtime)
+│   └── full-data.zip               # Original NISR baseline archive
 └── tests/
     ├── test_loaders.py
     ├── test_filters.py
     ├── test_quality_badges.py
-    └── test_ai.py              # Mocked Claude API tests
+    └── test_ai.py                  # Mocked Claude API tests
 ```
 
 ---
@@ -271,14 +313,48 @@ Shakisha-app/
 | Item | Detail |
 |---|---|
 | **Primary source** | NISR Microdata Catalog — `microdata.statistics.gov.rw` |
+| **Secondary source** | OpenAlex open-access research API — no API key required |
 | **Files used** | `studies.csv`, `study_resources.csv`, `quality_report.csv` |
-| **Sample data** | 3 studies (Agricultural HH Survey 2017, DHS 2014-2015, RPHC 2022) |
-| **Full data** | ~50–100 NISR studies across surveys, censuses, and administrative records |
-| **Access status** | Baseline CSVs provided by hackathon organizers; NISR links validated during event |
-| **Provenance log** | Each study displays: source institution, source URL, access status, and access timestamp |
+| **Current catalog size** | ~2,740 studies, ~4,384 resources |
+| **NISR base** | Rwanda surveys, censuses, and administrative records (authoritative) |
+| **OpenAlex** | Peer-reviewed academic papers on Rwanda gender, labour, agriculture, and land rights |
+| **Incremental crawl** | `nisr_crawler.py` skips study IDs already present — safe to re-run without duplicating |
+| **Provenance columns** | Each pipeline-ingested study carries `ingested_at` (date) and `source_adapter` (e.g. `nisr_crawl`, `openalex`) |
+| **Auto-backup** | `build_dataset.py` backs up `data/full/` to `data/full_backup/` before every merge |
 
 **Citation format used throughout:**
 `Source: <Institution>, <Study Title>, <Year>. Available at: <URL>`
+
+---
+
+## Data Pipeline — Refreshing the Catalog
+
+The pipeline is designed to be run on demand. Each adapter only adds new data; the NISR base catalog always takes priority on duplicates.
+
+```bash
+# 1. Crawl new NISR studies (skips existing ones automatically)
+python data_pipeline/nisr_crawler.py
+
+# Optional flags:
+#   --max-pages 5       limit to first 5 catalog pages
+#   --max-studies 50    limit total studies fetched
+#   --dry-run           list matching studies without writing
+#   --strict            apply strict abstract quality fixes
+
+# 2. Fetch latest OpenAlex research papers
+python data_pipeline/openalex_adapter.py
+
+# Optional flags:
+#   --max-per-query 200   limit results per search query
+#   --dry-run             print API calls without writing
+
+# 3. Merge all sources into the live catalog
+python data_pipeline/build_dataset.py
+
+# Restart the app to reflect the updated catalog
+```
+
+The **Data Pipeline** page in the app (`pages/5_Pipeline.py`) shows the live status of each source, the last run date, and study counts — without needing to touch the terminal.
 
 ---
 
@@ -291,7 +367,7 @@ Shakisha-app/
 > Shakisha returns: DHS 2014-2015, EICV surveys — with quality badges and relevance explanations
 
 **Step 2 — Evaluate**
-> Sees: DHS 2014-2015 has 19 resources, quality: 🟡 warning (2 missing fields)
+> Sees: DHS 2014-2015 has 19 resources, quality: warning (2 missing fields)
 > Clicks: source link → confirms data is accessible on NISR portal
 
 **Step 3 — Generate Brief**
@@ -304,7 +380,7 @@ Shakisha-app/
 > - *Citation:* NISR, DHS 2014-2015. Available at: [URL]
 
 **Step 4 — Use**
-> Copies brief → pastes into funding proposal → done in 4 minutes
+> Copies brief or exports as PDF → pastes into funding proposal → done in 4 minutes
 
 ---
 
@@ -312,12 +388,13 @@ Shakisha-app/
 
 | Limitation | Impact |
 |---|---|
-| Data is pre-collected from NISR (no real-time crawl) | Catalog may not reflect resources added after the hackathon event |
+| NISR crawler requires internet access to microdata portal | Catalog refresh not possible in offline/restricted network environments |
 | AI briefs are based on study abstracts only (not full PDFs) | Findings are summaries, not full analysis |
 | Link checker is on-demand — no background monitoring | A link may appear available but return errors on actual download |
 | No user authentication | Any user can access all studies; no personalization |
 | Claude API requires an internet connection and API key | App does not run fully offline |
 | District-level disaggregation not available in current dataset | Cannot filter or visualize by Rwanda district |
+| OpenAlex papers are academic articles, not microdata | May not have raw data files attached — linked by DOI only |
 
 ---
 
@@ -325,11 +402,12 @@ Shakisha-app/
 
 | Priority | Feature |
 |---|---|
-| High | Real-time NISR catalog sync via scheduled crawler |
 | High | District-level data integration for geographic filtering |
-| Medium | PDF content extraction for deeper AI analysis |
+| High | PDF content extraction for deeper AI analysis |
+| Medium | Scheduled/automated pipeline runs (cron or GitHub Actions) |
 | Medium | User accounts and saved search history |
 | Medium | Batch export (multiple studies as a single policy report) |
+| Medium | World Bank and ILO adapters (stubs visible in Pipeline page) |
 | Low | Multilingual support (Kinyarwanda + French + English) |
 | Low | Offline mode with cached data snapshot |
 
@@ -337,7 +415,11 @@ Shakisha-app/
 
 ## Architecture Note
 
-Shakisha is built as a pure Python/Streamlit application on top of the provided hackathon starter. The AI layer (`src/ai.py`) calls the Claude API (`claude-haiku-4-5`) for three tasks: interpreting natural language queries into structured filters, generating per-study relevance explanations, and producing structured advocacy briefs. All data manipulation is done in-memory with pandas — no external database is required. The link checker (`src/link_checker.py`) runs optional HTTP HEAD validation on demand. Session state (`st.session_state`) is used to pass the selected study ID from the Discovery page to the Advocacy Brief page, enabling a seamless single-page-to-brief flow without page reloads.
+Shakisha is built as a pure Python/Streamlit application. The AI layer (`src/ai.py`) calls the Claude API (`claude-haiku-4-5`) for three tasks: interpreting natural language queries into structured filters, generating per-study relevance explanations, and producing structured advocacy briefs. Generated briefs are persisted to disk via `src/brief_store.py` and can be exported as PDF using `fpdf2`. Domain classification logic lives in `src/domains.py`, which drives the domain filter UI and the NISR crawler's relevance filter.
+
+The data pipeline (`data_pipeline/`) is a separate, command-line-runnable layer. `nisr_crawler.py` crawls the live NISR microdata portal with gender/domain relevance filtering and checkpoint-based resumption. `openalex_adapter.py` fetches peer-reviewed papers via the OpenAlex REST API (no key required). `build_dataset.py` merges all sources, with NISR base winning on duplicate study IDs, and auto-backs up before writing. All data manipulation is done in-memory with pandas — no external database is required.
+
+Session state (`st.session_state`) passes the selected study ID from the Discovery page to the Advocacy Brief page, enabling a seamless single-page-to-brief flow without page reloads.
 
 ---
 
@@ -345,11 +427,11 @@ Shakisha is built as a pure Python/Streamlit application on top of the provided 
 
 | Criterion | Weight | How Shakisha Addresses It |
 |---|---|---|
-| Coverage | 30% | Full NISR catalog loaded; 5 filter dimensions (keyword, year, org, type, quality level) |
-| Usability | 25% | Natural language search replaces keyword guessing; result cards replace raw tables |
-| Trustworthiness | 20% | Quality badges on every result; source URLs and access status visible; citation auto-generated |
-| Maintainability | 15% | Clean `src/` module structure; all existing tests pass; `.env.example` provided |
-| Policy Relevance | 10% | Advocacy Brief page produces a concrete, citable, ready-to-use policy output |
+| Coverage | 30% | ~2,740 studies from NISR + OpenAlex; 5 filter dimensions (keyword, year, org, type, quality level); incremental crawler adds new studies on demand |
+| Usability | 25% | Natural language search replaces keyword guessing; result cards replace raw tables; PDF export for immediate use |
+| Trustworthiness | 20% | Quality badges on every result; source URLs and access status visible; citation auto-generated; `ingested_at` and `source_adapter` provenance on all pipeline-ingested records |
+| Maintainability | 15% | Clean `src/` module structure; separate `data_pipeline/` layer; all tests pass; `.env.example` provided; auto-backup before every merge |
+| Policy Relevance | 10% | Advocacy Brief page produces a concrete, citable, ready-to-use policy output with PDF export |
 
 ---
 
