@@ -1,0 +1,14 @@
+{
+  "study_id": "90",
+  "title": "Agricultural Household Survey 2017",
+  "organization": "National Institute of Statistics of Rwanda - Ministry of Finance and Economic Planning",
+  "year": "2017",
+  "saved_at": "2026-03-20T08:25:08",
+  "brief": {
+    "policy_context": "Agricultural productivity and land access are critical drivers of women's economic empowerment and household income in Rwanda. The National Gender Policy (2021) mandates sex-disaggregated data across all sectors to enable gender-responsive budgeting and evidence-based policy. This 2017 Agricultural Household Survey provides foundational national data needed to track progress on Vision 2050's target of gender parity in economic participation and NST1's commitment to closing gender wage gaps in the agriculture sector.",
+    "key_findings": "• National-level agricultural household data collected with national coverage, enabling sector-wide policy analysis\n• Dataset supports monitoring of agriculture programs and policies critical to rural livelihoods where the majority of Rwanda's population resides\n• Information resource designed to facilitate evidence-based decision-making for agriculture sector priority interventions",
+    "data_gaps": "The abstract does not indicate whether the survey includes sex-disaggregated data on land ownership, agricultural income, and decision-making roles—critical indicators for assessing women's economic participation. The 2017 survey predates the 2021 National Gender Policy's mandate for gender-responsive data; it is unclear whether the dataset captures gender-specific variables required for GRB analysis or monitoring of the 30% women-in-decision-making target in agricultural cooperatives and producer organizations.",
+    "recommended_action": "CSOs should request the National Institute of Statistics of Rwanda formally document and publish all sex-disaggregated variables within the Agricultural Household Survey 2017 dataset, and advocate for the 2024+ Agricultural Household Survey cycle to include mandatory gender indicators on land tenure, agricultural income by sex, and women's participation in farm management decisions—aligned with the National Gender Policy's GRB requirements and Vision 2050 economic parity targets.",
+    "citation": "National Institute of Statistics of Rwanda - Ministry of Finance and Economic Planning. Agricultural Household Survey 2017. 2017. Available at: https://microdata.statistics.gov.rw/index.php/catalog/90"
+  }
+}

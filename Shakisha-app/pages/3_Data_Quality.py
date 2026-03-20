@@ -7,7 +7,7 @@ import streamlit as st
 from datetime import datetime
 
 from src.link_checker import check_url
-from src.loaders import get_data_dir, load_all_data
+from src.loaders import get_catalog_mtime, get_data_dir, load_all_data
 from src.quality_badges import parse_quality_flags, quality_level
 
 # ── Load data ──────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ quality["q_level"] = quality["missing_field_count"].apply(quality_level)
 quality["parsed_flags"] = quality["quality_flags"].fillna("").apply(parse_quality_flags)
 
 st.title("Data Quality")
-st.caption(f"Data source: `{get_data_dir()}`")
+st.caption(f"Data source: `{get_data_dir()}` · Catalog last updated: **{get_catalog_mtime()}**")
 
 # ── Summary metrics ────────────────────────────────────────────────────────────
 total = len(quality)
@@ -95,14 +95,14 @@ if st.button("Check links", disabled=not selected_ids):
     results = []
     progress = st.progress(0)
     checked_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    STATUS_BADGE = {
+        "available": "🟢 Available",
+        "error": "🔴 Error",
+        "unreachable": "🔴 Unreachable",
+        "invalid": "⚪ Invalid URL",
+    }
     for i, (_, row) in enumerate(rows_to_check.iterrows()):
         status, code = check_url(row["url"])
-        STATUS_BADGE = {
-            "available": "🟢 Available",
-            "error": "🔴 Error",
-            "unreachable": "🔴 Unreachable",
-            "invalid": "⚪ Invalid URL",
-        }
         results.append({
             "Study": row["title"],
             "URL": row["url"],
@@ -112,5 +112,13 @@ if st.button("Check links", disabled=not selected_ids):
         })
         progress.progress((i + 1) / len(rows_to_check))
     progress.empty()
-    st.caption(f"Last checked: {checked_at}")
-    st.dataframe(pd.DataFrame(results), use_container_width=True, hide_index=True)
+    st.session_state["link_check_results"] = results
+    st.session_state["link_check_time"] = checked_at
+
+if st.session_state.get("link_check_results"):
+    st.caption(f"Last checked: {st.session_state['link_check_time']}")
+    st.dataframe(pd.DataFrame(st.session_state["link_check_results"]), use_container_width=True, hide_index=True)
+    if st.button("Clear results"):
+        del st.session_state["link_check_results"]
+        del st.session_state["link_check_time"]
+        st.rerun()

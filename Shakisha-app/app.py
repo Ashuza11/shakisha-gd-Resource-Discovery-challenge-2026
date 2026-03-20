@@ -3,6 +3,9 @@ import os
 import tempfile
 
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv(override=True)  # always prefer .env over shell environment
 
 st.set_page_config(
     page_title="Shakisha — Gender Data Discovery",

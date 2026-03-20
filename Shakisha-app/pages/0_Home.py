@@ -5,17 +5,19 @@ import os
 import streamlit as st
 
 from src.domains import DOMAINS
-from src.loaders import load_all_data
+from src.loaders import compute_domain_study_counts, load_all_data
 
 # ── Load data for live stats ───────────────────────────────────────────────────
 try:
     studies, resources, _ = load_all_data()
     n_studies = len(studies)
     n_resources = len(resources)
+    domain_counts = compute_domain_study_counts(studies)
     data_loaded = True
 except Exception:
     n_studies = "—"
     n_resources = "—"
+    domain_counts = {}
     data_loaded = False
 
 AI_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
@@ -67,6 +69,7 @@ STATUS_STYLE = {
 cols = st.columns(len(DOMAINS))
 for col, (key, cfg) in zip(cols, DOMAINS.items()):
     icon, label, bg, fg = STATUS_STYLE[cfg["status"]]
+    count = domain_counts.get(key, cfg["study_count_hint"])
     with col:
         st.markdown(
             f"""
@@ -74,7 +77,7 @@ for col, (key, cfg) in zip(cols, DOMAINS.items()):
                 <div style='font-size:1.6em;'>{cfg['emoji']}</div>
                 <div style='font-weight:bold; color:{fg}; font-size:0.85em;'>{cfg['name']}</div>
                 <div style='color:{fg}; font-size:0.75em;'>{icon} {label}</div>
-                <div style='color:#666; font-size:0.7em; margin-top:4px;'>{cfg['study_count_hint']} studies</div>
+                <div style='color:#666; font-size:0.7em; margin-top:4px;'>{count} studies</div>
             </div>
             """,
             unsafe_allow_html=True,

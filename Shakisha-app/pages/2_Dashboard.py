@@ -18,10 +18,16 @@ quality["q_level"] = quality["q_missing"].apply(quality_level)
 # ── Sidebar branding + domain selector ────────────────────────────────────────
 with st.sidebar:
     active = get_active_domains()
+    domain_options = list(active.keys())
+
+    if st.session_state.get("selected_domain") not in domain_options:
+        st.session_state["selected_domain"] = domain_options[0]
+
     selected_domain = st.selectbox(
         "Domain",
-        options=list(active.keys()),
+        options=domain_options,
         format_func=lambda k: f"{DOMAINS[k]['emoji']} {DOMAINS[k]['name']}",
+        key="selected_domain",
     )
 
 domain_cfg = DOMAINS[selected_domain]
@@ -271,7 +277,12 @@ for name, lat, lon, province in DISTRICT_CENTROIDS:
     })
 district_df = pd.DataFrame(district_rows)
 
-fig_map = px.scatter_geo(
+district_df["coverage_label"] = district_df.apply(
+    lambda r: f"{r['study_count']} studies cover {r['province']} Province (national surveys include all districts)",
+    axis=1,
+)
+
+fig_map = px.scatter_mapbox(
     district_df,
     lat="lat",
     lon="lon",
@@ -280,29 +291,20 @@ fig_map = px.scatter_geo(
     color="province",
     color_discrete_map=PROVINCE_COLORS,
     size_max=28,
-    hover_data={"lat": False, "lon": False, "study_count": True, "province": True},
+    zoom=7.4,
+    center={"lat": -1.94, "lon": 29.87},
+    hover_data={"lat": False, "lon": False, "study_count": False, "province": True, "coverage_label": True},
     title=f"{domain_cfg['name']} — study coverage by district",
 )
-fig_map.update_geos(
-    lataxis_range=[-3.1, -1.0],
-    lonaxis_range=[28.7, 31.0],
-    showland=True,
-    landcolor="rgb(240, 242, 238)",
-    showocean=False,
-    showcountries=True,
-    countrycolor="#aaaaaa",
-    showcoastlines=False,
-    bgcolor="rgba(0,0,0,0)",
-    projection_type="natural earth",
-)
 fig_map.update_layout(
-    height=480,
+    mapbox_style="open-street-map",
+    height=600,
     margin=dict(t=40, b=10, l=0, r=0),
     legend=dict(title="Province", orientation="v"),
-    geo=dict(center=dict(lat=-1.94, lon=29.87)),
 )
 st.plotly_chart(fig_map, use_container_width=True)
 st.caption(
-    "Bubble size = number of studies covering each district. "
-    "National studies (geographic coverage = 'Rwanda') count toward all districts."
+    "Bubble size = studies covering each province. "
+    "Most are national surveys — they cover all 30 districts but are not district-specific. "
+    "Use the Discovery page to find studies with district-level disaggregation."
 )

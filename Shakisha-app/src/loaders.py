@@ -40,3 +40,36 @@ def load_all_data(data_dir: Path | None = None) -> Tuple[pd.DataFrame, pd.DataFr
     _assert_columns(quality, REQUIRED_QUALITY_COLS, "quality_report.csv")
     return studies, resources, quality
 
+
+def compute_domain_study_counts(studies: pd.DataFrame) -> dict[str, int]:
+    """Return actual study counts per domain key, computed from the loaded catalog."""
+    # Import here to avoid circular dependency at module level
+    from src.domains import DOMAINS, get_domain_keywords
+
+    counts: dict[str, int] = {}
+    titles = studies["title"].fillna("").astype(str).str.lower().tolist()
+    abstracts = studies.get("abstract", pd.Series([""] * len(studies))).fillna("").astype(str).str.lower().tolist()
+    for domain_key in DOMAINS:
+        keywords = get_domain_keywords(domain_key)
+        if not keywords:
+            counts[domain_key] = len(studies)
+            continue
+        n = sum(
+            any(k in t for k in keywords) or any(k in a for k in keywords)
+            for t, a in zip(titles, abstracts)
+        )
+        counts[domain_key] = n
+    return counts
+
+
+def get_catalog_mtime() -> str:
+    """Return last-modified timestamp of the studies.csv file as a human-readable string."""
+    import time
+    base = get_data_dir()
+    csv_path = base / "studies.csv"
+    try:
+        mtime = csv_path.stat().st_mtime
+        return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(mtime))
+    except OSError:
+        return "unknown"
+

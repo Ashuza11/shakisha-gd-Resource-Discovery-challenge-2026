@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 import pandas as pd
 import streamlit as st
@@ -8,11 +9,12 @@ import streamlit as st
 from src.ai import explain_study, interpret_query
 from src.domains import DOMAINS, filter_by_domain, get_active_domains
 from src.filters import apply_study_filters, filter_resources_by_type
-from src.loaders import get_data_dir, load_all_data
+from src.loaders import compute_domain_study_counts, get_data_dir, load_all_data
 from src.quality_badges import parse_quality_flags, quality_level
 
 # ── Load data ──────────────────────────────────────────────────────────────────
 studies, resources, quality = load_all_data()
+domain_counts = compute_domain_study_counts(studies)
 quality_map = (
     quality[["study_id", "quality_flags", "missing_field_count"]]
     .rename(columns={"quality_flags": "q_flags", "missing_field_count": "q_missing"})
@@ -29,10 +31,15 @@ with st.sidebar:
     domain_options = list(active.keys())
     domain_labels = {k: f"{v['emoji']} {v['name']}" for k, v in active.items()}
 
+    # Ensure stored value is still valid (e.g. if a domain was deactivated)
+    if st.session_state.get("selected_domain") not in domain_options:
+        st.session_state["selected_domain"] = domain_options[0]
+
     selected_domain = st.selectbox(
         "Active domain",
         options=domain_options,
         format_func=lambda k: domain_labels.get(k, k),
+        key="selected_domain",
         help="Domains are added one at a time as data is validated.",
     )
 
@@ -45,7 +52,8 @@ with st.sidebar:
         with st.expander("More domains (coming soon)", expanded=False):
             for key, cfg in other_domains.items():
                 status_badge = "🔜" if cfg["status"] == "coming_soon" else "📋"
-                st.caption(f"{status_badge} {cfg['emoji']} **{cfg['name']}** — {cfg['study_count_hint']} studies")
+                count = domain_counts.get(key, cfg["study_count_hint"])
+                st.caption(f"{status_badge} {cfg['emoji']} **{cfg['name']}** — {count} studies")
 
     st.divider()
     ai_status = "✅ Enabled" if AI_AVAILABLE else "⚠️ Disabled — set ANTHROPIC_API_KEY"
@@ -63,22 +71,38 @@ st.caption(
 st.info(f"**Advocacy focus:** {domain_cfg['advocacy_context']}")
 
 # ── Search bar ─────────────────────────────────────────────────────────────────
-query = st.text_input(
-    "Search the catalog",
-    placeholder="e.g. women's workforce participation after 2019",
-    help=(
-        "Type a plain-language question or keywords. AI will interpret your intent."
-        if AI_AVAILABLE
-        else "Keyword search across titles and abstracts."
-    ),
-)
+_col_q, _col_btn = st.columns([6, 1])
+with _col_q:
+    query = st.text_input(
+        "Search the catalog",
+        placeholder="e.g. women's workforce participation after 2019",
+        help=(
+            "Type a plain-language question or keywords. AI will interpret your intent."
+            if AI_AVAILABLE
+            else "Keyword search across titles and abstracts."
+        ),
+    )
+with _col_btn:
+    st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+    _search_clicked = st.button("Search", use_container_width=True)
 
 # ── Filters ────────────────────────────────────────────────────────────────────
+_years = pd.to_numeric(studies["year"], errors="coerce").dropna().astype(int)
+_year_data_min = int(_years.min()) if not _years.empty else 2000
+_year_data_max = int(_years.max()) if not _years.empty else 2026
+
 fc1, fc2, fc3 = st.columns(3)
 with fc1:
-    year_min = st.number_input("Year from", value=2000, step=1)
+    year_min, year_max = st.slider(
+        "Year range",
+        min_value=_year_data_min,
+        max_value=_year_data_max,
+        value=(_year_data_min, _year_data_max),
+        step=1,
+        help=f"Data spans {_year_data_min}–{_year_data_max}",
+    )
 with fc2:
-    year_max = st.number_input("Year to", value=2026, step=1)
+    pass  # slider spans fc1; fc2 left for spacing
 with fc3:
     org_options = ["All"] + sorted(
         studies["organization"].fillna("Unknown").astype(str).str.strip().unique().tolist()
@@ -212,12 +236,57 @@ st.subheader(
 )
 
 if merged.empty:
-    st.info("No studies match your search. Try broadening the year range or changing keywords.")
-    st.stop()
+    _specific_district = (
+        district_filter not in ("All Rwanda", "📍 Has district-level data")
+        and district_filter.strip() != ""
+    )
+    if _specific_district:
+        # No study mentions this district by name — fall back to national studies
+        st.info(
+            f"No studies are specific to **{district_filter}** district. "
+            "Showing national studies that cover all of Rwanda (including this district)."
+        )
+        _national_mask = (
+            domain_studies["geographic_coverage"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .isin(["rwanda", "national", "national coverage", ""])
+        )
+        _fallback = domain_studies[_national_mask].copy()
+        # still apply any other active filters (year, org, query)
+        _fallback = apply_study_filters(
+            _fallback,
+            query=effective_query,
+            year_min=effective_year_min,
+            year_max=effective_year_max,
+            organization="" if org_filter == "All" else org_filter,
+        )
+        merged = _fallback.merge(quality_map, on="study_id", how="left")
+        merged["q_missing"] = merged["q_missing"].fillna(0).astype(int)
+        merged["q_level"] = merged["q_missing"].apply(quality_level)
+        if quality_filter != "all":
+            merged = merged[merged["q_level"] == quality_filter]
+        if not res_filtered.empty:
+            res_count = (
+                res_filtered.groupby("study_id", as_index=False)["url"]
+                .count()
+                .rename(columns={"url": "matched_resources"})
+            )
+            merged = merged.merge(res_count, on="study_id", how="left")
+        else:
+            merged["matched_resources"] = 0
+        merged["matched_resources"] = merged["matched_resources"].fillna(0).astype(int)
+        if merged.empty:
+            st.info("No studies match your search. Try broadening the year range or changing keywords.")
+            st.stop()
+    else:
+        st.info("No studies match your search. Try broadening the year range or changing keywords.")
+        st.stop()
 
 # ── Quality badge helpers ──────────────────────────────────────────────────────
 BADGE = {"good": "🟢", "warning": "🟡", "critical": "🔴"}
-LABEL = {"good": "Good quality", "warning": "Some missing fields", "critical": "Missing critical fields"}
+LABEL = {"good": "Good quality", "warning": "Missing fields", "critical": "Missing fields"}
 
 
 def render_card(row: dict, study_resources: list[dict]) -> None:
@@ -225,8 +294,12 @@ def render_card(row: dict, study_resources: list[dict]) -> None:
     badge = BADGE.get(level, "⚪")
     label = LABEL.get(level, "Unknown")
     flags = parse_quality_flags(str(row.get("q_flags", "")))
-    study_url = row.get("url", "")
-    microdata_url = row.get("get_microdata_url", "")
+    study_url = str(row.get("url", "") or "").strip()
+    if study_url in ("nan", "None"):
+        study_url = ""
+    microdata_url = str(row.get("get_microdata_url", "") or "").strip()
+    if microdata_url in ("nan", "None"):
+        microdata_url = ""
     org = row.get("organization", "Unknown organization")
     year = row.get("year", "—")
     title = row.get("title", "Untitled")
@@ -247,7 +320,7 @@ def render_card(row: dict, study_resources: list[dict]) -> None:
         with col_badge:
             st.markdown(f"{badge} **{label}**")
             if flags:
-                with st.expander("Caveats", expanded=False):
+                with st.expander("Quality issues", expanded=False):
                     for f in flags:
                         st.caption(f"• {f}")
 
@@ -270,6 +343,19 @@ def render_card(row: dict, study_resources: list[dict]) -> None:
         abstract = str(row.get("abstract", ""))
         if abstract and abstract not in ("", "nan"):
             st.caption(abstract[:280] + ("…" if len(abstract) > 280 else ""))
+
+        # Key figures — extract percentage statistics from abstract
+        _pct_matches = re.findall(r'[^.]*\d+\.?\d*\s*%[^.]*\.', abstract)
+        if _pct_matches:
+            with st.expander("Key figures", expanded=False):
+                for snippet in _pct_matches[:4]:
+                    st.caption(f"• {snippet.strip()}")
+
+        # District-disaggregatable tag
+        _geo_unit = str(row.get("geographic_unit", "")).lower()
+        _geo_cov  = str(row.get("geographic_coverage", "")).lower()
+        if "district" in _geo_unit or "district" in _geo_cov:
+            st.caption("📍 District-level estimates available")
 
         # Action row
         btn_col1, btn_col2, btn_col3, _ = st.columns([2, 2, 2, 2])
@@ -300,13 +386,34 @@ def render_card(row: dict, study_resources: list[dict]) -> None:
             cite_org = str(org) if str(org) != "nan" else "NISR"
             citation_text = (
                 f"{cite_org}. ({cite_year}). {title}. "
-                f"National Institute of Statistics of Rwanda. "
                 f"Retrieved from {study_url or 'https://microdata.statistics.gov.rw'}"
             )
             st.code(citation_text, language=None)
 
 
-# ── Render cards ───────────────────────────────────────────────────────────────
-for _, row in merged.iterrows():
+# ── Reset pagination when domain or query changes ──────────────────────────────
+PAGE_SIZE = 20
+_filter_sig = f"{selected_domain}:{query}"
+if st.session_state.get("_last_filter_sig") != _filter_sig:
+    st.session_state["discovery_page_size"] = PAGE_SIZE
+    st.session_state["_last_filter_sig"] = _filter_sig
+
+# ── Render cards (paginated) ───────────────────────────────────────────────────
+if "discovery_page_size" not in st.session_state:
+    st.session_state["discovery_page_size"] = PAGE_SIZE
+
+visible = merged.head(st.session_state["discovery_page_size"])
+for _, row in visible.iterrows():
     study_res = res_filtered[res_filtered["study_id"] == row["study_id"]].to_dict("records")
     render_card(row.to_dict(), study_res)
+
+remaining = len(merged) - len(visible)
+if remaining > 0:
+    if st.button(f"Show more ({remaining} remaining)", use_container_width=False):
+        st.session_state["discovery_page_size"] += PAGE_SIZE
+        st.rerun()
+else:
+    if st.session_state["discovery_page_size"] > PAGE_SIZE:
+        if st.button("Collapse results", use_container_width=False):
+            st.session_state["discovery_page_size"] = PAGE_SIZE
+            st.rerun()

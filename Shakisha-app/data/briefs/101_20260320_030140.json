@@ -1,0 +1,14 @@
+{
+  "study_id": 101,
+  "title": "Agricultural Household Survey 2020",
+  "organization": "National Institute of Statistics of Rwanda - Ministry of Finance and Economic Planning",
+  "year": "2020",
+  "saved_at": "2026-03-20T03:01:40",
+  "brief": {
+    "policy_context": "Rwanda's Vision 2050 and NST1 commit to gender parity in economic participation and closing gender wage gaps, yet agricultural livelihoods—which employ a significant portion of Rwanda's population—remain inadequately disaggregated by sex in national monitoring systems. The 2021 National Gender Policy mandates sex-disaggregated data across all ministries; this household-level survey offers a critical opportunity to track women's agricultural productivity, land access, input use, and financial inclusion against these commitments.",
+    "key_findings": "• The survey captures household-level agricultural indicators including demographic characteristics, farm characteristics, livelihood activities, and financial aspects—foundational for gender-responsive analysis\n• Data encompasses extension services and agricultural program implementation, revealing potential gender gaps in service access and uptake\n• The survey notes that crop production and productivity data are captured separately in the Seasonal Agricultural Survey (SAS), creating a fragmented evidence base that may obscure gendered patterns in productivity and income",
+    "data_gaps": "The abstract provides no evidence that the survey disaggregates core indicators (land ownership, input access, income, extension uptake, or decision-making authority) by sex or household headship status, despite these being essential for monitoring NST1's gender wage gap closure and Vision 2050 economic participation targets. Without sex-disaggregated results and metadata on analytical scope, the dataset's utility for gender-responsive budgeting and policy accountability is severely limited.",
+    "recommended_action": "CSOs should formally request that NISR publish a gender-disaggregated analytical brief from the 2020 Agricultural Household Survey, disaggregating key findings by sex of household head, land tenure status, input use, and income—and submit this demand as input to the Ministry of Finance's gender-responsive budgeting framework, citing the National Gender Policy's 2021 mandate.",
+    "citation": "National Institute of Statistics of Rwanda, Ministry of Finance and Economic Planning. Agricultural Household Survey 2020. 2020. Available at: https://microdata.statistics.gov.rw/index.php/catalog/101"
+  }
+}
