@@ -3,3 +3,7 @@ __pycache__/
 .pytest_cache/
 *.pyc
 .env
+
+# Next.js build artifacts and deps
+frontend/.next/
+frontend/node_modules/

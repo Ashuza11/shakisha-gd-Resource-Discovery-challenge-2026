@@ -29,7 +29,7 @@ DOMAINS: dict[str, DomainConfig] = {
             "Women's economic participation and employment equity in Rwanda — "
             "covering formal employment, informal sector, child labour, and enterprise ownership."
         ),
-        "study_count_hint": 19,
+        "study_count_hint": 99,
     },
     "agriculture": {
         "name": "Agriculture & Food Security",
@@ -44,57 +44,67 @@ DOMAINS: dict[str, DomainConfig] = {
             "Women's role in agricultural production, land rights, "
             "and food security outcomes in rural Rwanda."
         ),
-        "study_count_hint": 22,
+        "study_count_hint": 297,
     },
     "health": {
         "name": "Demographics & Health",
         "emoji": "🏥",
         "description": "DHS surveys, maternal health, reproductive health, and service provision data.",
         "keywords": [
-            "demographic", "health", "dhs", "mics",
-            "service provision", "maternal", "reproductive",
+            "demographic and health", "dhs",
+            "mics", "service provision",
+            "maternal health", "reproductive health",
         ],
-        "status": "coming_soon",
+        "status": "active",
         "advocacy_context": (
             "Reproductive health, maternal mortality, and women's access "
             "to healthcare services across Rwanda."
         ),
-        "study_count_hint": 9,
+        "study_count_hint": 112,
     },
     "household": {
         "name": "Household & Living Conditions",
         "emoji": "🏠",
         "description": "EICV integrated household surveys, poverty assessment, living standards data.",
-        "keywords": ["household", "eicv", "living conditions", "poverty", "welfare"],
-        "status": "planned",
+        "keywords": [
+            "eicv", "household survey", "living standards",
+            "integrated household", "household consumption", "poverty assessment",
+        ],
+        "status": "active",
         "advocacy_context": (
             "Gender dimensions of household poverty, asset ownership, "
             "and living standards in Rwanda."
         ),
-        "study_count_hint": 13,
+        "study_count_hint": 72,
     },
     "finance": {
         "name": "Financial Inclusion",
         "emoji": "💰",
         "description": "FinScope surveys measuring access to financial services and products.",
-        "keywords": ["finscope", "financial", "finance", "inclusion", "banking"],
-        "status": "planned",
+        "keywords": [
+            "finscope", "financial inclusion",
+            "microfinance", "access to finance",
+        ],
+        "status": "active",
         "advocacy_context": (
             "Women's access to formal financial services, savings, credit, "
             "and mobile money in Rwanda."
         ),
-        "study_count_hint": 4,
+        "study_count_hint": 47,
     },
     "population": {
         "name": "Population & Census",
         "emoji": "👥",
         "description": "Population and housing censuses, demographic snapshots.",
-        "keywords": ["population", "housing", "census", "recensement", "habitat"],
-        "status": "planned",
+        "keywords": [
+            "population and housing census", "recensement général",
+            "general census", "demographic projection",
+        ],
+        "status": "active",
         "advocacy_context": (
             "Population structure, urbanization, and gender demographic trends across Rwanda."
         ),
-        "study_count_hint": 10,
+        "study_count_hint": 8,
     },
 }
 
