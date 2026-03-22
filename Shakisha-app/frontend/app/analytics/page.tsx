@@ -5,7 +5,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { api, DomainConfig, Study } from "../lib/api";
+import { api, DomainConfig, Study, GeographicData } from "../lib/api";
+import RwandaMap from "../components/RwandaMap";
 
 const QUALITY_COLORS: Record<string, string> = {
   good:     "#20603D",
@@ -39,12 +40,23 @@ function MetricCard({ label, value, sub }: { label: string; value: string | numb
 }
 
 export default function AnalyticsPage() {
-  const [domains, setDomains]   = useState<Record<string, DomainConfig>>({});
-  const [studies, setStudies]   = useState<Study[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [domains,     setDomains]   = useState<Record<string, DomainConfig>>({});
+  const [studies,     setStudies]   = useState<Study[]>([]);
+  const [geoData,     setGeoData]   = useState<GeographicData | null>(null);
+  const [loading,     setLoading]   = useState(true);
+  const [geoLoading,  setGeoLoading] = useState(true);
   const [activeDomain, setActiveDomain] = useState("labour");
 
+  // Load geographic data once (cross-domain)
   useEffect(() => {
+    api.geographic()
+      .then(setGeoData)
+      .finally(() => setGeoLoading(false));
+  }, []);
+
+  // Load domain-filtered studies
+  useEffect(() => {
+    setLoading(true);
     Promise.all([
       api.domains().then(setDomains),
       api.search({ domain: activeDomain, query: "", sort_order: "Newest first", use_ai: false })
@@ -79,18 +91,47 @@ export default function AnalyticsPage() {
       .map(([name, count]) => ({ name: name.length > 45 ? name.slice(0, 45) + "…" : name, count }));
   })();
 
+  const DOMAIN_SHORT: Record<string, string> = {
+    labour:      "Labour",
+    agriculture: "Agri.",
+    health:      "Health",
+    household:   "Household",
+    finance:     "Finance",
+    population:  "Census",
+  };
+
   const domainCountsChart = Object.entries(domains)
     .filter(([, d]) => d.status === "active")
     .map(([key, d], i) => ({
-      name: d.name.replace("& ", "&\n"),
-      count: d.study_count,
-      fill: DOMAIN_COLORS[i % DOMAIN_COLORS.length],
+      name:     DOMAIN_SHORT[key] ?? key,
+      fullName: d.name,
+      count:    d.study_count,
+      fill:     DOMAIN_COLORS[i % DOMAIN_COLORS.length],
     }));
 
   const activeDomainCfg = domains[activeDomain];
   const goodCount = qualityCounts.find((q) => q.name === "good")?.value ?? 0;
   const years = yearCounts.map((y) => parseInt(y.year)).filter(Boolean);
   const yearSpan = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : "—";
+
+  // Domain-filtered geographic data — derived from existing geoData, no extra fetch
+  const domainProvinces = geoData
+    ? geoData.provinces.map(p => ({
+        ...p,
+        specific_count: p.domain_counts[activeDomain] ?? 0,
+        total_count:    (p.domain_counts[activeDomain] ?? 0) + (geoData.national_domains[activeDomain] ?? 0),
+      }))
+    : [];
+  const domainNationalCount = geoData?.national_domains[activeDomain] ?? 0;
+
+  // Geo resolution for the stacked bar
+  const resolutionData = geoData ? [
+    { name: "Sub-district", value: geoData.geo_resolution.sub_district, fill: "#1A4D2E" },
+    { name: "District",     value: geoData.geo_resolution.district,     fill: "#32A060" },
+    { name: "Province",     value: geoData.geo_resolution.province,     fill: "#88C4A0" },
+    { name: "National",     value: geoData.geo_resolution.national,     fill: "#C4E0D0" },
+    { name: "Unspecified",  value: geoData.geo_resolution.unspecified,  fill: "#D0C8BC" },
+  ] : [];
 
   return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
@@ -99,7 +140,7 @@ export default function AnalyticsPage() {
           Analytics
         </h1>
         <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 28 }}>
-          Catalog trends, quality distribution, and coverage gaps across domains.
+          Catalog trends, quality distribution, geographic coverage gaps, and domain breakdown.
         </p>
 
         {/* Domain selector tabs */}
@@ -123,6 +164,63 @@ export default function AnalyticsPage() {
           <MetricCard label="High quality" value={loading ? "—" : goodCount} sub="Missing 0 fields" />
           <MetricCard label="Year coverage" value={loading ? "—" : yearSpan} />
           <MetricCard label="Total resources" value={loading ? "—" : studies.reduce((a, s) => a + s.resource_count, 0).toLocaleString()} />
+          <MetricCard
+            label="Province-specific studies"
+            value={geoLoading ? "—" : domainProvinces.reduce((s, p) => s + p.specific_count, 0)}
+            sub={`${activeDomainCfg?.name ?? ""} · vs. national`}
+          />
+        </div>
+
+        {/* ── Geographic Coverage Map ─────────────────────────────────────── */}
+        <div
+          style={{
+            background: "var(--warm-white)",
+            border: "1px solid var(--border)",
+            borderRadius: 16,
+            padding: "32px 32px 28px",
+            marginBottom: 20,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 18, color: "var(--charcoal)", marginBottom: 4 }}>
+                Geographic Coverage — {activeDomainCfg?.emoji} {activeDomainCfg?.name}
+              </div>
+              <p style={{ fontSize: 13, color: "var(--muted)", maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
+                Choropleth shows <strong>province-specific studies</strong> for this domain.
+                {domainNationalCount > 0 && <> +{domainNationalCount} national-level {activeDomainCfg?.name.toLowerCase()} studies cover all provinces equally.</>}
+                <span style={{ color: "#C04F4F", fontWeight: 600 }}> Warm = data gap.</span>
+              </p>
+            </div>
+            {!geoLoading && domainProvinces.length > 0 && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {domainProvinces
+                  .filter(p => p.specific_count === 0)
+                  .map(p => (
+                    <span key={p.key} style={{
+                      fontSize: 11, fontWeight: 700, color: "#C04F4F",
+                      background: "#FEE8E8", border: "1px solid #F5C6C6",
+                      padding: "3px 8px", borderRadius: 6,
+                    }}>
+                      {p.name}: 0
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {geoLoading ? (
+            <div className="skeleton" style={{ height: 320, borderRadius: 12 }} />
+          ) : geoData ? (
+            <RwandaMap
+              provinces={domainProvinces}
+              districts={geoData.districts}
+              geoResolution={geoData.geo_resolution}
+              nationalCount={domainNationalCount}
+            />
+          ) : (
+            <div style={{ color: "var(--muted)", padding: 24 }}>Geographic data unavailable.</div>
+          )}
         </div>
 
         {loading ? (
@@ -206,10 +304,11 @@ export default function AnalyticsPage() {
                 </div>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={domainCountsChart} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8A6A5A" }} tickLine={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 }}
+                      formatter={(value, _name, props) => [value, props.payload.fullName]}
                     />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Studies">
                       {domainCountsChart.map((entry, index) => (
@@ -220,6 +319,32 @@ export default function AnalyticsPage() {
                 </ResponsiveContainer>
               </div>
             </div>
+
+            {/* Row 3: Geographic resolution breakdown */}
+            {!geoLoading && resolutionData.length > 0 && (
+              <div style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 12, padding: "24px", marginBottom: 20 }}>
+                <div style={{ fontWeight: 700, fontSize: 16, color: "var(--charcoal)", marginBottom: 6 }}>
+                  Data resolution breakdown — all 674 studies
+                </div>
+                <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
+                  How granular is the geographic coverage? Sub-district data enables the most targeted policy recommendations.
+                </p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={resolutionData} layout="vertical" margin={{ top: 0, right: 40, bottom: 0, left: 20 }}>
+                    <XAxis type="number" tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 }}
+                    />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} name="Studies">
+                      {resolutionData.map((entry, index) => (
+                        <Cell key={index} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </>
         )}
       </div>

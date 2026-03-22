@@ -67,8 +67,15 @@ function StudyCard({
       {/* Header row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "var(--charcoal)", marginBottom: 4, lineHeight: 1.4 }}>
-            {study.title}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "var(--charcoal)", lineHeight: 1.4 }}>
+              {study.title}
+            </div>
+            {study.is_nisr && (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "var(--rw-green)", background: "var(--rw-green-light)", padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0 }}>
+                NISR
+              </span>
+            )}
           </div>
           <div style={{ color: "var(--muted)", fontSize: 13 }}>
             {[study.organization, study.year, study.geographic_coverage].filter(Boolean).join(" · ")}

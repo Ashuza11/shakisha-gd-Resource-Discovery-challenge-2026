@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- Coral rounded-square background -->
+  <rect width="48" height="48" rx="9" fill="#C04F4F"/>
+  <!-- Shakisha mark (lens + 4 dots + female symbol), scaled and centred -->
+  <!-- Original viewBox 0 0 32 50 → scale 0.74, translate to centre -->
+  <g transform="translate(10.16, 4) scale(0.74)" fill="none">
+    <!-- Lens circle -->
+    <circle cx="16" cy="13" r="11" stroke="#FAF5EF" stroke-width="2.6"/>
+    <!-- 4 data dots — 2×2 grid -->
+    <circle cx="11" cy="8"  r="2.2" fill="#FAF5EF"/>
+    <circle cx="21" cy="8"  r="2.2" fill="#FAF5EF"/>
+    <circle cx="11" cy="18" r="2.2" fill="#FAF5EF"/>
+    <circle cx="21" cy="18" r="2.2" fill="#FAF5EF"/>
+    <!-- Female symbol: stem -->
+    <line x1="16" y1="24" x2="16" y2="42" stroke="#FAF5EF" stroke-width="2.6" stroke-linecap="round"/>
+    <!-- Female symbol: crossbar -->
+    <line x1="9"  y1="34" x2="23" y2="34" stroke="#FAF5EF" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+</svg>

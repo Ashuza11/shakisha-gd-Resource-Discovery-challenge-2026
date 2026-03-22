@@ -88,6 +88,48 @@ def _quality_order(level: str) -> int:
     return {"good": 0, "warning": 1, "critical": 2}.get(level, 1)
 
 
+def _normalize_title(title: str) -> str:
+    """Convert ALL-CAPS titles to Title Case; leave normally-cased titles unchanged."""
+    if not title:
+        return title
+    letters = [c for c in title if c.isalpha()]
+    if not letters:
+        return title
+    if sum(1 for c in letters if c.isupper()) / len(letters) > 0.70:
+        LOWER_WORDS = {"a", "an", "the", "and", "but", "or", "nor", "for",
+                       "in", "on", "at", "to", "of", "up", "by", "with"}
+        words = title.lower().split()
+        result = []
+        for i, word in enumerate(words):
+            result.append(word if (i > 0 and word in LOWER_WORDS) else word.capitalize())
+        return " ".join(result)
+    return title
+
+
+def _is_nisr(row: dict) -> bool:
+    """True for NISR base and NISR crawler studies; False for OpenAlex and other pipeline sources.
+    Uses study_id prefix as the primary signal — 'oa_' prefix = OpenAlex."""
+    study_id = str(row.get("study_id", "") or "")
+    if study_id.startswith("oa_"):
+        return False
+    adapter = str(row.get("source_adapter", "") or "").strip()
+    if adapter in ("openalex", "worldbank", "ilo"):
+        return False
+    return True
+
+
+def _relevance_score(title: str, abstract: str, tokens: list) -> float:
+    """Count keyword hits: title matches count 3×, abstract matches count 1×."""
+    if not tokens:
+        return 0.0
+    t = title.lower()
+    a = abstract.lower()
+    return float(
+        sum(3 for tok in tokens if tok in t) +
+        sum(1 for tok in tokens if tok in a)
+    )
+
+
 def _serialise_study(row: dict, resources_df=None) -> dict:
     """Convert a study row + quality info into a JSON-safe dict."""
     import pandas as pd
@@ -110,9 +152,12 @@ def _serialise_study(row: dict, resources_df=None) -> dict:
         s = str(val or "").strip()
         return "" if s in ("nan", "None") else s
 
+    nisr = _is_nisr(row)
+
     return {
         "study_id": study_id,
-        "title": clean(row.get("title", "")),
+        "title": _normalize_title(clean(row.get("title", ""))),
+        "is_nisr": nisr,
         "year": clean(row.get("year", "")),
         "organization": clean(row.get("organization", "")),
         "abstract": clean(row.get("abstract", "")),
@@ -233,13 +278,49 @@ def search(req: SearchRequest):
     if req.quality_filter != "all":
         merged = merged[merged["q_level"] == req.quality_filter]
 
-    # Sort
-    if req.sort_order == "Newest first":
-        merged = merged.sort_values("year", ascending=False, na_position="last")
-    elif req.sort_order == "Oldest first":
-        merged = merged.sort_values("year", ascending=True, na_position="last")
-    elif req.sort_order == "By quality":
-        merged = merged.assign(_qs=merged["q_level"].map(_quality_order)).sort_values("_qs").drop(columns=["_qs"])
+    # ── Ranking ───────────────────────────────────────────────────────────────
+    STOP = {"and", "or", "the", "in", "of", "for", "to", "a", "an", "on", "at", "by"}
+    search_tokens = [
+        t for t in (effective_query or "").lower().split()
+        if t not in STOP and len(t) > 2
+    ]
+
+    if search_tokens:
+        # Composite ranking: relevance + NISR priority + quality
+        merged["_rel"] = merged.apply(
+            lambda r: _relevance_score(
+                str(r.get("title", "")), str(r.get("abstract", "")), search_tokens
+            ), axis=1
+        )
+        merged["_nisr"] = merged.apply(
+            lambda r: 3 if _is_nisr(r.to_dict()) else 0, axis=1
+        )
+        merged["_qual"] = merged["q_level"].map(
+            lambda l: {"good": 2, "warning": 1, "critical": 0}.get(l, 1)
+        )
+        merged["_score"] = merged["_rel"] + merged["_nisr"] + merged["_qual"]
+        merged = (
+            merged.sort_values(["_score", "_nisr"], ascending=[False, False])
+            .drop(columns=["_rel", "_nisr", "_qual", "_score"])
+        )
+    else:
+        # No query: NISR sources first, then apply the chosen sort
+        merged["_nisr"] = merged.apply(
+            lambda r: 0 if _is_nisr(r.to_dict()) else 1, axis=1
+        )
+        if req.sort_order == "Newest first":
+            year_col = pd.to_numeric(merged["year"], errors="coerce").fillna(0)
+            merged["_year"] = year_col
+            merged = merged.sort_values(["_nisr", "_year"], ascending=[True, False]).drop(columns=["_nisr", "_year"])
+        elif req.sort_order == "Oldest first":
+            year_col = pd.to_numeric(merged["year"], errors="coerce").fillna(9999)
+            merged["_year"] = year_col
+            merged = merged.sort_values(["_nisr", "_year"], ascending=[True, True]).drop(columns=["_nisr", "_year"])
+        elif req.sort_order == "By quality":
+            merged["_qs"] = merged["q_level"].map(_quality_order)
+            merged = merged.sort_values(["_nisr", "_qs"]).drop(columns=["_nisr", "_qs"])
+        else:
+            merged = merged.sort_values(["_nisr"], ascending=True).drop(columns=["_nisr"])
 
     studies_out = [_serialise_study(row, res_filtered) for _, row in merged.iterrows()]
 
@@ -390,6 +471,125 @@ _RWANDA_DISTRICTS = [
 @app.get("/api/districts")
 def districts():
     return {"districts": _RWANDA_DISTRICTS}
+
+
+# ── Geographic coverage analysis ───────────────────────────────────────────────
+
+_PROVINCE_KEYWORDS: dict[str, list[str]] = {
+    "northern": ["northern province", "northern", "nord", "musanze", "burera", "gakenke", "gicumbi", "rulindo"],
+    "eastern":  ["eastern province",  "eastern",  "est",  "nyagatare", "gatsibo", "kayonza", "kirehe", "ngoma", "rwamagana", "bugesera"],
+    "southern": ["southern province", "southern", "sud",  "huye", "gisagara", "nyaruguru", "nyamagabe", "muhanga", "ruhango", "kamonyi"],
+    "western":  ["western province",  "western",  "ouest","rubavu", "nyabihu", "rutsiro", "karongi", "rusizi", "ngororero", "nyamasheke", "gisenyi"],
+    "kigali":   ["kigali"],
+}
+
+_PROVINCE_NAMES = {
+    "northern": "Northern Province",
+    "eastern":  "Eastern Province",
+    "southern": "Southern Province",
+    "western":  "Western Province",
+    "kigali":   "Kigali City",
+}
+
+_DISTRICT_TO_PROVINCE: dict[str, str] = {
+    "musanze": "northern", "burera": "northern", "gakenke": "northern", "gicumbi": "northern", "rulindo": "northern",
+    "nyagatare": "eastern", "gatsibo": "eastern", "kayonza": "eastern", "kirehe": "eastern",
+    "ngoma": "eastern", "rwamagana": "eastern", "bugesera": "eastern",
+    "huye": "southern", "gisagara": "southern", "nyaruguru": "southern", "nyamagabe": "southern",
+    "muhanga": "southern", "ruhango": "southern", "kamonyi": "southern", "nyanza": "southern",
+    "rubavu": "western", "nyabihu": "western", "rutsiro": "western", "karongi": "western",
+    "rusizi": "western", "ngororero": "western", "nyamasheke": "western",
+    "gasabo": "kigali", "kicukiro": "kigali", "nyarugenge": "kigali",
+}
+
+
+@app.get("/api/geographic")
+def geographic():
+    """Geographic coverage analysis — province-specific vs. national studies."""
+    _require_data()
+    from src.domains import filter_by_domain, DOMAINS as _DOMAINS
+
+    # Domain masks (index-aligned with _studies)
+    studies_list = _studies.reset_index(drop=True)
+    titles    = studies_list["title"].tolist()
+    abstracts = studies_list.get("abstract", studies_list["title"]).fillna("").tolist()
+    domain_masks: dict[str, list[bool]] = {
+        dk: filter_by_domain(titles, dk, abstracts=abstracts)
+        for dk in _DOMAINS
+    }
+
+    specific_count:  dict[str, int] = {k: 0 for k in _PROVINCE_KEYWORDS}
+    national_count   = 0
+    province_domains: dict[str, dict[str, int]] = {k: {} for k in _PROVINCE_KEYWORDS}
+    national_domains: dict[str, int] = {}
+    district_counts:  dict[str, int] = {}
+
+    geo_resolution = {"sub_district": 0, "district": 0, "province": 0, "national": 0, "unspecified": 0}
+
+    for i, row in studies_list.iterrows():
+        geo_cov  = str(row.get("geographic_coverage", "") or "").lower()
+        geo_unit = str(row.get("geographic_unit", "") or "").lower()
+        combined = geo_cov + " " + geo_unit
+
+        # Geographic resolution
+        if any(w in combined for w in ["cell level", "sector level", "village level", "au niveau de la cellule"]):
+            geo_resolution["sub_district"] += 1
+        elif any(w in combined for w in ["district level", "district-level", "disaggregated up to the district", "district level as well"]):
+            geo_resolution["district"] += 1
+        elif any(w in combined for w in ["province", "provincial", "regional level"]):
+            geo_resolution["province"] += 1
+        elif any(w in combined for w in ["national", "nationwide", "nation-wide", "tout le pays", "whole country", "couverture national"]):
+            geo_resolution["national"] += 1
+        else:
+            geo_resolution["unspecified"] += 1
+
+        # Province assignment
+        matched: set[str] = set()
+        for prov, keywords in _PROVINCE_KEYWORDS.items():
+            if any(kw in combined for kw in keywords):
+                matched.add(prov)
+
+        # District counts
+        for dist in _DISTRICT_TO_PROVINCE:
+            if dist in combined:
+                district_counts[dist] = district_counts.get(dist, 0) + 1
+
+        if matched:
+            for prov in matched:
+                specific_count[prov] += 1
+                for dk, mask in domain_masks.items():
+                    if mask[i]:
+                        province_domains[prov][dk] = province_domains[prov].get(dk, 0) + 1
+        else:
+            national_count += 1
+            for dk, mask in domain_masks.items():
+                if mask[i]:
+                    national_domains[dk] = national_domains.get(dk, 0) + 1
+
+    # Build output
+    provinces_out = []
+    for prov_key in _PROVINCE_KEYWORDS:
+        provinces_out.append({
+            "key":            prov_key,
+            "name":           _PROVINCE_NAMES[prov_key],
+            "specific_count": specific_count[prov_key],
+            "total_count":    specific_count[prov_key] + national_count,
+            "domain_counts":  province_domains[prov_key],
+        })
+
+    districts_out = [
+        {"name": d.capitalize(), "province": p, "study_count": district_counts.get(d, 0)}
+        for d, p in _DISTRICT_TO_PROVINCE.items()
+    ]
+
+    return {
+        "provinces":       provinces_out,
+        "districts":       districts_out,
+        "national_count":  national_count,
+        "national_domains": national_domains,
+        "total_studies":   len(_studies),
+        "geo_resolution":  geo_resolution,
+    }
 
 
 # ── Pipeline status ────────────────────────────────────────────────────────────

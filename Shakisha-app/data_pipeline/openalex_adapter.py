@@ -106,6 +106,30 @@ def _make_study_id(openalex_id: str) -> str:
     return f"oa_{short}"
 
 
+def _is_rwanda_focused(title: str, abstract: str) -> bool:
+    """Return True only if the paper explicitly discusses Rwanda (not just listed as a country tag)."""
+    text = (title + " " + abstract[:400]).lower()
+    return "rwanda" in text
+
+
+def _normalize_title(title: str) -> str:
+    """Convert ALL-CAPS titles to Title Case; leave normally-cased titles alone."""
+    if not title:
+        return title
+    letters = [c for c in title if c.isalpha()]
+    if not letters:
+        return title
+    if sum(1 for c in letters if c.isupper()) / len(letters) > 0.70:
+        LOWER_WORDS = {"a", "an", "the", "and", "but", "or", "nor", "for",
+                       "in", "on", "at", "to", "of", "up", "by", "with"}
+        words = title.lower().split()
+        result = []
+        for i, word in enumerate(words):
+            result.append(word if (i > 0 and word in LOWER_WORDS) else word.capitalize())
+        return " ".join(result)
+    return title
+
+
 def _get_authors(work: dict) -> str:
     authors = work.get("authorships") or []
     names = [a["author"]["display_name"] for a in authors[:5] if a.get("author")]
@@ -171,13 +195,19 @@ def fetch_query(query: dict, max_results: int, dry_run: bool) -> list[dict]:
     return works
 
 
-def normalize_work(work: dict, domain: str) -> tuple[dict, list[dict]]:
-    """Convert an OpenAlex work to (study_row, resource_rows) matching Shakisha schema."""
+def normalize_work(work: dict, domain: str) -> tuple[dict, list[dict]] | None:
+    """Convert an OpenAlex work to (study_row, resource_rows) matching Shakisha schema.
+    Returns None if the paper is not Rwanda-focused."""
     oa_id = work.get("id", "")
     study_id = _make_study_id(oa_id)
-    title = work.get("display_name") or "Untitled"
+    title = _normalize_title(work.get("display_name") or "Untitled")
     year = work.get("publication_year")
     abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
+
+    # Drop papers that don't actually discuss Rwanda
+    if not _is_rwanda_focused(title, abstract):
+        return None
+
     source = _get_source_name(work)
     doi_url = _get_doi_url(work)
     oa_url = _get_oa_url(work)
@@ -223,6 +253,8 @@ def normalize_work(work: dict, domain: str) -> tuple[dict, list[dict]]:
         "study_description": abstract,
         "data_description": "",
         "documentation": doi_url,
+        "source_adapter": "openalex",
+        "ingested_at": "",
     }
 
     resources = []
@@ -317,7 +349,10 @@ def run(max_per_query: int = 500, dry_run: bool = False) -> None:
             if study_id in seen_ids:
                 continue
             seen_ids.add(study_id)
-            study_row, resource_rows = normalize_work(work, query["domain"])
+            result = normalize_work(work, query["domain"])
+            if result is None:
+                continue  # not Rwanda-focused — skip
+            study_row, resource_rows = result
             all_studies.append(study_row)
             all_resources.extend(resource_rows)
 

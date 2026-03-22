@@ -37,6 +37,7 @@ export interface StudyResource {
 export interface Study {
   study_id: string;
   title: string;
+  is_nisr: boolean;
   year: string;
   organization: string;
   abstract: string;
@@ -149,6 +150,37 @@ export interface PipelineStatus {
   recently_added: RecentStudy[];
 }
 
+export interface ProvinceData {
+  key: string;
+  name: string;
+  specific_count: number;
+  total_count: number;
+  domain_counts: Record<string, number>;
+}
+
+export interface DistrictData {
+  name: string;
+  province: string;
+  study_count: number;
+}
+
+export interface GeoResolution {
+  sub_district: number;
+  district: number;
+  province: number;
+  national: number;
+  unspecified: number;
+}
+
+export interface GeographicData {
+  provinces: ProvinceData[];
+  districts: DistrictData[];
+  national_count: number;
+  national_domains: Record<string, number>;
+  total_studies: number;
+  geo_resolution: GeoResolution;
+}
+
 // ── API functions ──────────────────────────────────────────────────────────
 
 export const api = {
@@ -188,4 +220,6 @@ export const api = {
     post<{ results: LinkCheckResult[] }>("/link-check", { study_ids }),
 
   pipeline: () => get<PipelineStatus>("/pipeline"),
+
+  geographic: () => get<GeographicData>("/geographic"),
 };
