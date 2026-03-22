@@ -207,8 +207,8 @@ export const api = {
 
   study: (id: string) => get<Study>(`/studies/${id}`),
 
-  quality: () =>
-    get<{ items: QualityItem[]; catalog_updated: string }>("/quality"),
+  quality: (domain = "all") =>
+    get<{ items: QualityItem[]; catalog_updated: string }>(`/quality${domain !== "all" ? `?domain=${domain}` : ""}`),
 
   brief: (study_id: string) =>
     post<BriefResponse>("/brief", { study_id }),

@@ -342,22 +342,34 @@ def get_study(study_id: str):
 
 
 @app.get("/api/quality")
-def quality_report():
+def quality_report(domain: str = "all"):
     _require_data()
+    from src.domains import filter_by_domain
+
+    # Build domain-filtered set of study IDs
+    if domain != "all":
+        titles    = _studies["title"].tolist()
+        abstracts = _studies.get("abstract", _studies["title"]).fillna("").tolist()
+        mask      = filter_by_domain(titles, domain, abstracts=abstracts)
+        allowed   = set(_studies[mask]["study_id"].astype(str).tolist())
+    else:
+        allowed = None  # no restriction
+
     out = []
     for _, row in _quality.iterrows():
-        missing = int(row.get("missing_field_count", 0) or 0)
-        flags_raw = str(row.get("quality_flags", "") or "")
-        # Get title from studies
         study_id = str(row.get("study_id", ""))
+        if allowed is not None and study_id not in allowed:
+            continue
+        missing   = int(row.get("missing_field_count", 0) or 0)
+        flags_raw = str(row.get("quality_flags", "") or "")
         study_row = _studies[_studies["study_id"].astype(str) == study_id]
-        title = str(study_row.iloc[0]["title"]) if not study_row.empty else study_id
+        title     = str(study_row.iloc[0]["title"]) if not study_row.empty else study_id
         out.append({
-            "study_id": study_id,
-            "title": title,
+            "study_id":           study_id,
+            "title":              title,
             "missing_field_count": missing,
-            "quality_level": quality_level(missing),
-            "quality_flags": parse_quality_flags(flags_raw),
+            "quality_level":      quality_level(missing),
+            "quality_flags":      parse_quality_flags(flags_raw),
         })
     return {"items": out, "catalog_updated": get_catalog_mtime()}
 

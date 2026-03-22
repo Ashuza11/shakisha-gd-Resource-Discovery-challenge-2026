@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { api, QualityItem, QualityLevel, LinkCheckResult } from "../lib/api";
+import { api, QualityItem, QualityLevel, LinkCheckResult, DomainConfig } from "../lib/api";
 
 const BADGE_STYLE: Record<QualityLevel, { cls: string; label: string }> = {
   good:     { cls: "badge-good",     label: "Good" },
@@ -17,24 +17,36 @@ const QUALITY_COLORS: Record<QualityLevel, string> = {
 };
 
 export default function QualityPage() {
-  const [items, setItems]         = useState<QualityItem[]>([]);
-  const [updatedAt, setUpdatedAt] = useState("");
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState<"all" | QualityLevel>("all");
-  const [search, setSearch]       = useState("");
-  const [sortDesc, setSortDesc]   = useState(true);
+  const [domains,      setDomains]    = useState<Record<string, DomainConfig>>({});
+  const [activeDomain, setActiveDomain] = useState("all");
+  const [items, setItems]             = useState<QualityItem[]>([]);
+  const [updatedAt, setUpdatedAt]     = useState("");
+  const [loading, setLoading]         = useState(true);
+  const [filter, setFilter]           = useState<"all" | QualityLevel>("all");
+  const [search, setSearch]           = useState("");
+  const [sortDesc, setSortDesc]       = useState(true);
 
   // Link checker state
-  const [selectedIds, setSelectedIds]     = useState<string[]>([]);
-  const [checkResults, setCheckResults]   = useState<LinkCheckResult[]>([]);
-  const [checking, setChecking]           = useState(false);
+  const [selectedIds, setSelectedIds]   = useState<string[]>([]);
+  const [checkResults, setCheckResults] = useState<LinkCheckResult[]>([]);
+  const [checking, setChecking]         = useState(false);
 
+  // Load domains once
   useEffect(() => {
-    api.quality().then((r) => {
+    api.domains().then(setDomains);
+  }, []);
+
+  // Re-fetch quality whenever domain changes
+  useEffect(() => {
+    setLoading(true);
+    setSelectedIds([]);
+    setCheckResults([]);
+    setFilter("all");
+    api.quality(activeDomain).then((r) => {
       setItems(r.items);
       setUpdatedAt(r.catalog_updated);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [activeDomain]);
 
   async function handleLinkCheck() {
     if (!selectedIds.length) return;
@@ -85,6 +97,27 @@ export default function QualityPage() {
           Catalog last updated: <strong>{updatedAt || "—"}</strong>
         </p>
 
+        {/* Domain filter */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
+          <button
+            className={`domain-chip ${activeDomain === "all" ? "domain-chip-active" : "domain-chip-inactive"}`}
+            onClick={() => setActiveDomain("all")}
+          >
+            All domains
+          </button>
+          {Object.entries(domains)
+            .filter(([, d]) => d.status === "active")
+            .map(([key, d]) => (
+              <button
+                key={key}
+                className={`domain-chip ${activeDomain === key ? "domain-chip-active" : "domain-chip-inactive"}`}
+                onClick={() => setActiveDomain(key)}
+              >
+                {d.emoji} {d.name}
+              </button>
+            ))}
+        </div>
+
         {/* Metric cards */}
         <div className="grid-4col" style={{ marginBottom: 28 }}>
           {[
@@ -109,6 +142,11 @@ export default function QualityPage() {
           <div style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 12, padding: "24px", marginBottom: 28 }}>
             <div style={{ fontWeight: 700, fontSize: 16, color: "var(--charcoal)", marginBottom: 20 }}>
               Missing field counts — top 30 studies
+              {activeDomain !== "all" && domains[activeDomain] && (
+                <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
+                  · {domains[activeDomain].emoji} {domains[activeDomain].name}
+                </span>
+              )}
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
