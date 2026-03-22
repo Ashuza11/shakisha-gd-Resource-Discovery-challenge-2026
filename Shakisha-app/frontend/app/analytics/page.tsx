@@ -217,6 +217,7 @@ export default function AnalyticsPage() {
               districts={geoData.districts}
               geoResolution={geoData.geo_resolution}
               nationalCount={domainNationalCount}
+              totalStudies={geoData.total_studies}
             />
           ) : (
             <div style={{ color: "var(--muted)", padding: 24 }}>Geographic data unavailable.</div>
@@ -324,7 +325,7 @@ export default function AnalyticsPage() {
             {!geoLoading && resolutionData.length > 0 && (
               <div style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 12, padding: "24px", marginBottom: 20 }}>
                 <div style={{ fontWeight: 700, fontSize: 16, color: "var(--charcoal)", marginBottom: 6 }}>
-                  Data resolution breakdown — all 674 studies
+                  Data resolution breakdown — all {geoData?.total_studies ?? "…"} studies
                 </div>
                 <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
                   How granular is the geographic coverage? Sub-district data enables the most targeted policy recommendations.

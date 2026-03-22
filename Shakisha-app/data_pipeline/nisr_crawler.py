@@ -54,20 +54,52 @@ PAGINATION_RE   = re.compile(r"[/?&]page=(\d+)")
 # still capturing surveys that carry gender-disaggregated data even if "gender"
 # isn't in the title (e.g. Labour Force Survey, EICV, DHS).
 GENDER_KEYWORDS = [
-    "women", "woman", "gender", "female", "girl",
+    # Core gender terms
+    "women", "woman", "gender", "female", "girl", "girls",
+    # Reproductive / maternal
     "maternal", "maternity", "reproductive", "fertility",
-    "land rights", "women's", "womens",
+    "antenatal", "postnatal", "contraceptive", "family planning",
+    # Rights & violence
+    "land rights", "women's", "womens", "gender-based violence", "gbv",
+    "domestic violence", "intimate partner", "sexual violence",
+    # Empowerment & participation
+    "empowerment", "women empowerment", "women's empowerment",
+    "gender equality", "gender parity", "gender gap",
+    "women leadership", "women political",
+    # Economic / work
+    "unpaid work", "care work", "time use", "wage gap",
+    "women entrepreneurship", "female-headed",
+    # Social
+    "widow", "early marriage", "child marriage",
+    # Data/survey terms signaling gender disaggregation
+    "sex-disaggregated", "gender-disaggregated",
 ]
 DOMAIN_KEYWORDS = [
+    # Labour & employment
     "labour", "labor", "employment", "workforce", "enterprise", "establishment",
-    "manpower", "child labour",
+    "manpower", "child labour", "youth employment", "neet", "vocational",
+    # Agriculture & food
     "agriculture", "agricultural", "food security", "crop", "livestock",
-    "season", "nutrition", "smallholder", "farming",
+    "season", "nutrition", "smallholder", "farming", "malnutrition", "stunting",
+    # Household & poverty
     "household", "poverty", "welfare", "living conditions", "eicv",
+    "living standards", "consumption", "expenditure",
+    # Health & demographics
     "demographic", "health", "dhs", "mics", "service provision",
-    "population", "census", "recensement",
-    "financial", "finscope", "inclusion", "banking",
-    "education", "child", "youth",
+    "mortality", "morbidity", "hiv", "aids", "malaria",
+    # Population & census
+    "population", "census", "recensement", "migration", "urbanisation",
+    "urbanization", "birth rate", "death rate",
+    # Finance & inclusion
+    "financial", "finscope", "inclusion", "banking", "microfinance",
+    "mobile money", "savings", "credit",
+    # Education & youth
+    "education", "child", "youth", "school", "enrollment", "literacy",
+    # Governance & social protection
+    "social protection", "safety net", "vup", "vision 2020",
+    "governance", "accountability",
+    # Survey identifiers
+    "survey", "thematic report",
 ]
 
 ALL_RELEVANCE_KEYWORDS = GENDER_KEYWORDS + DOMAIN_KEYWORDS

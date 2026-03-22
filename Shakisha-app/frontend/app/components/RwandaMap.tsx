@@ -69,10 +69,11 @@ interface Props {
   districts:     DistrictData[];
   geoResolution: GeoResolution;
   nationalCount: number;
+  totalStudies?: number;
   onProvinceSelect?: (key: string | null) => void;
 }
 
-export default function RwandaMap({ provinces, districts, geoResolution, nationalCount, onProvinceSelect }: Props) {
+export default function RwandaMap({ provinces, districts, geoResolution, nationalCount, totalStudies, onProvinceSelect }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
 
   function handleSelect(key: string | null) {
@@ -187,7 +188,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
         {/* Geographic resolution */}
         <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)", marginBottom: 10 }}>
-            Data resolution — all 674 studies
+            Data resolution — all {totalStudies ?? "…"} studies
           </div>
           {([
             { label: "Sub-district", key: "sub_district", color: "#1A4D2E", note: "cell / sector" },

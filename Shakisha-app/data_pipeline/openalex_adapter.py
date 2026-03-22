@@ -30,11 +30,14 @@ PAGE_SIZE = 200                          # max allowed by OpenAlex
 OUTPUT_DIR = Path("data/pipeline_sources/openalex")
 RATE_LIMIT_DELAY = 0.12                  # seconds between requests (~8 req/s)
 
-# Targeted queries — each maps to a domain tag used in the output
+# Targeted queries — each maps to a domain tag used in the output.
+# Every query is scoped to Rwanda AND a gender lens to stay within the
+# hackathon theme.  Domains mirror the six active Shakisha domains.
 QUERIES: list[dict] = [
+    # ── Labour ──────────────────────────────────────────────────────────────
     {
         "domain": "labour",
-        "label": "Rwanda labour & gender",
+        "label": "Rwanda labour force & gender",
         "search": 'Rwanda AND ("labour force" OR "labor force" OR "employment" OR "workforce") AND ("women" OR "gender")',
     },
     {
@@ -42,6 +45,12 @@ QUERIES: list[dict] = [
         "label": "Rwanda women economic participation",
         "search": 'Rwanda AND ("women" OR "gender") AND ("economic participation" OR "informal sector" OR "enterprise" OR "wage gap")',
     },
+    {
+        "domain": "labour",
+        "label": "Rwanda youth unemployment & gender",
+        "search": 'Rwanda AND ("youth unemployment" OR "NEET" OR "skills" OR "vocational training") AND ("women" OR "gender" OR "girls")',
+    },
+    # ── Agriculture ─────────────────────────────────────────────────────────
     {
         "domain": "agriculture",
         "label": "Rwanda agriculture & gender",
@@ -53,14 +62,89 @@ QUERIES: list[dict] = [
         "search": 'Rwanda AND ("land rights" OR "land tenure" OR "land ownership") AND ("women" OR "gender")',
     },
     {
+        "domain": "agriculture",
+        "label": "Rwanda nutrition & food security women",
+        "search": 'Rwanda AND ("nutrition" OR "malnutrition" OR "stunting" OR "food insecurity") AND ("women" OR "gender" OR "maternal")',
+    },
+    # ── Health / Demographics ────────────────────────────────────────────────
+    {
+        "domain": "health",
+        "label": "Rwanda maternal & reproductive health",
+        "search": 'Rwanda AND ("maternal health" OR "reproductive health" OR "maternal mortality" OR "antenatal" OR "postnatal") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "health",
+        "label": "Rwanda DHS & demographic health survey",
+        "search": 'Rwanda AND ("demographic health survey" OR "DHS" OR "fertility rate" OR "child mortality") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "health",
+        "label": "Rwanda gender-based violence & health",
+        "search": 'Rwanda AND ("gender-based violence" OR "GBV" OR "intimate partner violence" OR "domestic violence") AND ("women" OR "health")',
+    },
+    {
+        "domain": "health",
+        "label": "Rwanda family planning & contraception",
+        "search": 'Rwanda AND ("family planning" OR "contraception" OR "contraceptive" OR "birth spacing") AND ("women" OR "gender")',
+    },
+    # ── Household ───────────────────────────────────────────────────────────
+    {
+        "domain": "household",
+        "label": "Rwanda household welfare & women",
+        "search": 'Rwanda AND ("household" OR "living standards" OR "living conditions" OR "welfare") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "household",
+        "label": "Rwanda poverty & female-headed households",
+        "search": 'Rwanda AND ("poverty" OR "female-headed household" OR "consumption" OR "EICV") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "household",
+        "label": "Rwanda unpaid care & domestic work",
+        "search": 'Rwanda AND ("unpaid work" OR "care work" OR "domestic work" OR "time use") AND ("women" OR "gender")',
+    },
+    # ── Finance ─────────────────────────────────────────────────────────────
+    {
+        "domain": "finance",
+        "label": "Rwanda financial inclusion & women",
+        "search": 'Rwanda AND ("financial inclusion" OR "mobile money" OR "finscope" OR "savings") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "finance",
+        "label": "Rwanda microfinance & women entrepreneurship",
+        "search": 'Rwanda AND ("microfinance" OR "credit" OR "women entrepreneurship" OR "SME") AND ("women" OR "gender")',
+    },
+    # ── Population / Census ─────────────────────────────────────────────────
+    {
+        "domain": "population",
+        "label": "Rwanda population census & gender",
+        "search": 'Rwanda AND ("census" OR "population" OR "migration" OR "urbanisation") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "population",
+        "label": "Rwanda women empowerment & social protection",
+        "search": 'Rwanda AND ("women empowerment" OR "social protection" OR "safety net" OR "VUP") AND ("women" OR "gender")',
+    },
+    {
+        "domain": "population",
+        "label": "Rwanda girls education & gender gap",
+        "search": 'Rwanda AND ("girls education" OR "school enrollment" OR "gender parity" OR "early marriage") AND ("women" OR "gender")',
+    },
+    # ── Cross-cutting gender ─────────────────────────────────────────────────
+    {
         "domain": "gender",
         "label": "Rwanda gender equality & policy",
-        "search": 'Rwanda AND ("gender equality" OR "women empowerment" OR "gender policy" OR "gender-based violence")',
+        "search": 'Rwanda AND ("gender equality" OR "women empowerment" OR "gender policy" OR "gender mainstreaming")',
     },
     {
         "domain": "gender",
         "label": "Rwanda women political participation",
         "search": 'Rwanda AND ("women" OR "gender") AND ("parliament" OR "political participation" OR "leadership" OR "decision-making")',
+    },
+    {
+        "domain": "gender",
+        "label": "Rwanda gender index & SDG",
+        "search": 'Rwanda AND ("gender development index" OR "SDG 5" OR "gender gap" OR "women rights" OR "CEDAW")',
     },
 ]
 
@@ -107,9 +191,25 @@ def _make_study_id(openalex_id: str) -> str:
 
 
 def _is_rwanda_focused(title: str, abstract: str) -> bool:
-    """Return True only if the paper explicitly discusses Rwanda (not just listed as a country tag)."""
-    text = (title + " " + abstract[:400]).lower()
-    return "rwanda" in text
+    """Return True only if Rwanda is the primary focus — not a passing mention in a multi-country study.
+    Rules (in order of strength):
+      1. "Rwanda" in the title → strong signal, always keep
+      2. "Rwanda" in the first 300 chars of the abstract → Rwanda is the stated subject
+      3. Any Rwanda city/district keyword in the title (e.g. Kigali, Musanze) → keep
+    Multi-country studies that only mention Rwanda deep in the abstract are excluded.
+    """
+    title_lower = title.lower()
+    if "rwanda" in title_lower:
+        return True
+    # Rwanda place names in title (city/district level)
+    rwanda_places = {"kigali", "musanze", "huye", "rubavu", "nyagatare", "rwamagana",
+                     "butare", "gisenyi", "byumba", "gitarama", "cyangugu"}
+    if any(p in title_lower for p in rwanda_places):
+        return True
+    # Rwanda must appear in the opening of the abstract (first 300 chars)
+    if abstract and "rwanda" in abstract[:300].lower():
+        return True
+    return False
 
 
 def _normalize_title(title: str) -> str:
@@ -332,15 +432,32 @@ def write_csvs(studies: list[dict], resources: list[dict], quality: list[dict]) 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+def _load_existing_ids() -> set[str]:
+    """Load study IDs already in data/full/studies.csv so we skip them during fetch."""
+    existing = Path("data/full/studies.csv")
+    if not existing.exists():
+        return set()
+    ids: set[str] = set()
+    with open(existing, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            sid = row.get("study_id", "").strip()
+            if sid:
+                ids.add(sid)
+    print(f"  Loaded {len(ids):,} existing study IDs from data/full/ (will skip duplicates)")
+    return ids
+
+
 def run(max_per_query: int = 500, dry_run: bool = False) -> None:
     print("=" * 60)
     print("Shakisha — OpenAlex Adapter")
     print(f"Max results per query: {max_per_query} | Dry run: {dry_run}")
     print("=" * 60)
 
+    # Pre-load all IDs already in the dataset so we never re-add them
+    seen_ids: set[str] = _load_existing_ids()
     all_studies: list[dict] = []
     all_resources: list[dict] = []
-    seen_ids: set[str] = set()
 
     for query in QUERIES:
         works = fetch_query(query, max_per_query, dry_run)
