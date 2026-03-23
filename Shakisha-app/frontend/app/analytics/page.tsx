@@ -177,8 +177,9 @@ export default function AnalyticsPage() {
             background: "var(--warm-white)",
             border: "1px solid var(--border)",
             borderRadius: 16,
-            padding: "32px 32px 28px",
+            padding: "clamp(16px, 3vw, 32px)",
             marginBottom: 20,
+            isolation: "isolate",   /* keeps Leaflet z-indexes from escaping this container */
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
@@ -290,7 +291,7 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={orgCounts} layout="vertical" margin={{ top: 0, right: 20, bottom: 0, left: 0 }}>
                     <XAxis type="number" tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: "#8A6A5A" }} tickLine={false} />
                     <Tooltip
                       contentStyle={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 }}
                     />

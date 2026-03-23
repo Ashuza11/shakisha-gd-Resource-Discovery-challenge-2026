@@ -9,11 +9,11 @@
 
 ## Live Demo
 
-| Interface | URL | Status |
-|---|---|---|
-| **Frontend** (Next.js) | `https://shakisha.vercel.app` | ⏳ Deploying |
-| **Backend API** (FastAPI) | `https://shakisha-api.onrender.com` | ⏳ Deploying |
-| **API Health check** | `https://shakisha-api.onrender.com/api/health` | ⏳ Deploying |
+| Interface                 | URL                                            | Status       |
+| ------------------------- | ---------------------------------------------- | ------------ |
+| **Frontend** (Next.js)    | `https://shakisha.vercel.app`                  | ⏳ Deploying |
+| **Backend API** (FastAPI) | `https://shakisha-api.onrender.com`            | ⏳ Deploying |
+| **API Health check**      | `https://shakisha-api.onrender.com/api/health` | ⏳ Deploying |
 
 > Both services deploy automatically from the `main` branch on every push.
 
@@ -21,10 +21,10 @@
 
 ## Team
 
-| Name | Role |
-|---|---|
+| Name                  | Role                    |
+| --------------------- | ----------------------- |
 | Muhigiri Ashuza Albin | Developer & AI Engineer |
-| Ingabire Vanessa | Researcher & UX |
+| Ingabire Vanessa      | Researcher & UX         |
 
 ---
 
@@ -67,7 +67,7 @@ Civil Society Organizations (CSOs) and policy actors in Rwanda lose critical adv
 ┌───────────────────────────▼─────────────────────────────────────────────┐
 │                    PYTHON CORE MODULES (src/)                           │
 │                                                                         │
-│  loaders · filters · quality_badges · ai (Claude API) · domains        │
+│  loaders · filters · quality_badges · ai (Claude API) · domains         │
 │  link_checker · brief_store                                             │
 └───────────────────────────┬─────────────────────────────────────────────┘
                             │
@@ -78,7 +78,7 @@ Civil Society Organizations (CSOs) and policy actors in Rwanda lose critical adv
 │  data/full/study_resources.csv   2,205 resources                        │
 │  data/full/quality_report.csv    per-study quality assessment           │
 │                                                                         │
-│  Sources:  NISR Microdata (base) · NISR Crawler · OpenAlex · Tavily*   │
+│  Sources:  NISR Microdata (base) · NISR Crawler · OpenAlex · Tavily*    │
 │            (* Tavily real-time crawl — coming soon)                     │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -126,15 +126,15 @@ TAVILY_API_KEY=tvly-...
 
 > The app works without any API key — discovery, quality, analytics, and pipeline pages are fully functional.
 
-| Feature | No keys | Anthropic only | Anthropic + Tavily |
-|---|---|---|---|
-| Search (keyword + filters) | ✅ Full | ✅ + AI query interpretation | ✅ |
-| Discovery page | ✅ Full | ✅ + per-study AI explanations | ✅ |
-| Analytics & Map | ✅ Full | ✅ | ✅ |
-| Data Quality | ✅ Full | ✅ | ✅ |
-| Advocacy Brief Generator | ❌ Friendly message | ✅ Full | ✅ |
-| On-demand real-time crawl | ❌ | ❌ | ✅ Coming soon |
-| Source Q&A chat | ❌ | ❌ | ✅ Coming soon |
+| Feature                    | No keys             | Anthropic only                 | Anthropic + Tavily |
+| -------------------------- | ------------------- | ------------------------------ | ------------------ |
+| Search (keyword + filters) | ✅ Full             | ✅ + AI query interpretation   | ✅                 |
+| Discovery page             | ✅ Full             | ✅ + per-study AI explanations | ✅                 |
+| Analytics & Map            | ✅ Full             | ✅                             | ✅                 |
+| Data Quality               | ✅ Full             | ✅                             | ✅                 |
+| Advocacy Brief Generator   | ❌ Friendly message | ✅ Full                        | ✅                 |
+| On-demand real-time crawl  | ❌                  | ❌                             | ✅ Coming soon     |
+| Source Q&A chat            | ❌                  | ❌                             | ✅ Coming soon     |
 
 ### Step 4 — Start the backend
 
@@ -144,6 +144,7 @@ uvicorn api.main:app --reload --port 8000
 ```
 
 Verify it loaded:
+
 ```bash
 curl http://127.0.0.1:8000/api/health
 # → {"status":"ok","data_loaded":true,"study_count":1362}
@@ -178,47 +179,47 @@ streamlit run app.py
 
 ## Pages Reference
 
-| Page | URL | What it does |
-|---|---|---|
-| **Home** | `/` | Hero with animated tagline, live catalog stats, domain coverage, how-it-works |
-| **Discovery** | `/discovery` | Natural language search, 6 domain filters, year/district/resource-type filters, quality badges |
-| **Analytics** | `/analytics` | Interactive Rwanda map, study trends by year, quality distribution, org breakdown |
-| **Data Quality** | `/quality` | Per-study quality badges, missing field analysis, source URL checker |
-| **Brief** | `/brief` | Select any study → generate a structured advocacy brief → download as .txt |
-| **Pipeline** | `/pipeline` | Source status, study counts per source, last crawl time, pipeline health |
+| Page             | URL          | What it does                                                                                   |
+| ---------------- | ------------ | ---------------------------------------------------------------------------------------------- |
+| **Home**         | `/`          | Hero with animated tagline, live catalog stats, domain coverage, how-it-works                  |
+| **Discovery**    | `/discovery` | Natural language search, 6 domain filters, year/district/resource-type filters, quality badges |
+| **Analytics**    | `/analytics` | Interactive Rwanda map, study trends by year, quality distribution, org breakdown              |
+| **Data Quality** | `/quality`   | Per-study quality badges, missing field analysis, source URL checker                           |
+| **Brief**        | `/brief`     | Select any study → generate a structured advocacy brief → download as .txt                     |
+| **Pipeline**     | `/pipeline`  | Source status, study counts per source, last crawl time, pipeline health                       |
 
 ---
 
 ## Catalog Coverage
 
-| Dimension | Detail |
-|---|---|
-| **Total studies** | 1,362 |
-| **Total resources** | 2,205 |
-| **Year range** | 1991 – 2026 |
-| **Geographic focus** | Rwanda — 100% (all studies verified for Rwanda relevance) |
-| **Domains** | 6 active: Labour, Agriculture, Health, Household, Finance, Population |
+| Dimension            | Detail                                                                |
+| -------------------- | --------------------------------------------------------------------- |
+| **Total studies**    | 1,362                                                                 |
+| **Total resources**  | 2,205                                                                 |
+| **Year range**       | 1991 – 2026                                                           |
+| **Geographic focus** | Rwanda — 100% (all studies verified for Rwanda relevance)             |
+| **Domains**          | 6 active: Labour, Agriculture, Health, Household, Finance, Population |
 
 ### Studies by domain
 
-| Domain | Studies | Key data sources |
-|---|---|---|
-| Gender (cross-cutting) | 320 | NISR, OpenAlex gender policy papers |
-| Agriculture | 264 | NISR Agricultural Surveys, land rights research |
-| Health | 255 | DHS surveys, maternal health studies |
-| Labour | 169 | NISR Labour Force Survey, enterprise censuses |
-| Population | 121 | NISR Census, migration & education studies |
-| Household | 118 | EICV surveys (EICV1–7), poverty analysis |
-| Finance | 42 | FinScope surveys, microfinance research |
-| NISR Official Surveys | 73 | Base catalog — microdata with full metadata |
+| Domain                 | Studies | Key data sources                                |
+| ---------------------- | ------- | ----------------------------------------------- |
+| Gender (cross-cutting) | 320     | NISR, OpenAlex gender policy papers             |
+| Agriculture            | 264     | NISR Agricultural Surveys, land rights research |
+| Health                 | 255     | DHS surveys, maternal health studies            |
+| Labour                 | 169     | NISR Labour Force Survey, enterprise censuses   |
+| Population             | 121     | NISR Census, migration & education studies      |
+| Household              | 118     | EICV surveys (EICV1–7), poverty analysis        |
+| Finance                | 42      | FinScope surveys, microfinance research         |
+| NISR Official Surveys  | 73      | Base catalog — microdata with full metadata     |
 
 ### Sources
 
-| Source | Description | Study count |
-|---|---|---|
-| **NISR Microdata Catalog** | Official Rwanda statistical surveys — microdata, full metadata | 73 |
-| **OpenAlex** | Open-access academic research papers (peer-reviewed) | 1,289 |
-| **Tavily** *(coming soon)* | Real-time on-demand crawl of web, reports, PDFs | — |
+| Source                     | Description                                                    | Study count |
+| -------------------------- | -------------------------------------------------------------- | ----------- |
+| **NISR Microdata Catalog** | Official Rwanda statistical surveys — microdata, full metadata | 73          |
+| **OpenAlex**               | Open-access academic research papers (peer-reviewed)           | 1,289       |
+| **Tavily** _(coming soon)_ | Real-time on-demand crawl of web, reports, PDFs                | —           |
 
 ---
 
@@ -262,7 +263,7 @@ Studies that only mention Rwanda as one of many countries in a multi-country ana
 
 ---
 
-## Tavily Integration *(Coming Soon)*
+## Tavily Integration _(Coming Soon)_
 
 Shakisha integrates [Tavily](https://docs.tavily.com/welcome) — a search API purpose-built for AI applications — to add two high-impact features:
 
@@ -283,6 +284,7 @@ New studies appear in the catalog within seconds
 ```
 
 **API endpoint (planned):** `POST /api/crawl`
+
 ```json
 {
   "query": "Rwanda women entrepreneurship 2025",
@@ -309,6 +311,7 @@ Response: "According to FinScope 2020, 42% of rural women use mobile money,
 ```
 
 **API endpoint (planned):** `POST /api/ask`
+
 ```json
 {
   "study_id": "36",
@@ -367,7 +370,7 @@ Click a province → zooms in, shows all 30 districts
 Hover any district → tooltip with study count and gap warning
 ```
 
-### Workflow 4 — Source Q&A *(coming soon)*
+### Workflow 4 — Source Q&A _(coming soon)_
 
 ```
 User finds a study
@@ -410,11 +413,11 @@ Env vars:       ANTHROPIC_API_KEY=<secret>
 
 ### Environment variables summary
 
-| Variable | Required for | Where to get |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | AI search, briefs, explanations | [console.anthropic.com](https://console.anthropic.com) |
-| `TAVILY_API_KEY` | Real-time crawl, source Q&A | [app.tavily.com](https://app.tavily.com) |
-| `NEXT_PUBLIC_API_URL` | Frontend → backend connection (production only) | Set to your Render URL |
+| Variable              | Required for                                    | Where to get                                           |
+| --------------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| `ANTHROPIC_API_KEY`   | AI search, briefs, explanations                 | [console.anthropic.com](https://console.anthropic.com) |
+| `TAVILY_API_KEY`      | Real-time crawl, source Q&A                     | [app.tavily.com](https://app.tavily.com)               |
+| `NEXT_PUBLIC_API_URL` | Frontend → backend connection (production only) | Set to your Render URL                                 |
 
 ---
 
@@ -510,13 +513,13 @@ python -m pytest tests/ -v
 
 Shakisha uses a custom Rwanda-inspired design system:
 
-| Token | Value | Usage |
-|---|---|---|
-| `--rw-green` | `#20603D` | Primary brand, Rwanda flag green |
-| `--coral` | `#C04F4F` | CTAs, data gap warnings |
-| `--rw-yellow` | `#E8B800` | Warnings, quality flags |
-| `--cream` | `#FAF5EF` | Page background (warm, not cold grey) |
-| `--charcoal` | `#1A1A1A` | Body text |
+| Token         | Value     | Usage                                 |
+| ------------- | --------- | ------------------------------------- |
+| `--rw-green`  | `#20603D` | Primary brand, Rwanda flag green      |
+| `--coral`     | `#C04F4F` | CTAs, data gap warnings               |
+| `--rw-yellow` | `#E8B800` | Warnings, quality flags               |
+| `--cream`     | `#FAF5EF` | Page background (warm, not cold grey) |
+| `--charcoal`  | `#1A1A1A` | Body text                             |
 
 Typography: **Playfair Display** (headings) · **Plus Jakarta Sans** (body) · **JetBrains Mono** (code/citations)
 
@@ -529,21 +532,26 @@ The Imigongo geometric pattern (traditional Rwandan art) is used as a section di
 **Context:** A CSO officer is preparing a brief for the Ministry of Gender on women's economic participation gaps.
 
 **Step 1 — Search**
+
 > Types: _"surveys on women economic participation Rwanda 2020"_
 > Shakisha returns: FinScope 2020, Labour Force Survey, EICV5 — with quality badges
 
 **Step 2 — Evaluate**
+
 > Sees: FinScope 2020 has complete metadata, quality: good (0 missing fields)
 > Analytics map shows Eastern Province has the most province-specific finance studies (19)
 
-**Step 3 — Ask** *(coming soon)*
+**Step 3 — Ask** _(coming soon)_
+
 > Clicks "Ask about this source" on FinScope 2020
 > Types: "What is the mobile money adoption gap between men and women?"
 > Gets: cited answer from the actual FinScope 2020 report within seconds
 
 **Step 4 — Brief**
+
 > Clicks "Generate Advocacy Brief"
 > Receives in ~10 seconds:
+>
 > - _Policy context:_ "Rwanda's Vision 2050 targets financial inclusion for 90% of adults..."
 > - _Key findings:_ 42% rural women use mobile money vs 61% rural men
 > - _Data gap:_ No district-level disaggregation for women's finance post-2020
@@ -551,19 +559,20 @@ The Imigongo geometric pattern (traditional Rwandan art) is used as a section di
 > - _Citation:_ NISR, FinScope Rwanda 2020. Available at: [URL]
 
 **Step 5 — Use**
+
 > Downloads brief as .txt → pastes into Ministry proposal → done in under 5 minutes
 
 ---
 
 ## Scoring Alignment
 
-| Criterion | Weight | How Shakisha Addresses It |
-|---|---|---|
-| **Coverage** | 30% | 1,362 studies across 6 domains; 21 OpenAlex queries spanning all domains; NISR crawler with 111 gender/domain keywords; Tavily real-time crawl *(coming soon)* adds live coverage on demand |
-| **Usability** | 25% | Natural language search; interactive Leaflet choropleth map locked to Rwanda; domain-aware province coloring; responsive Next.js UI; quality badge on every result |
-| **Trustworthiness** | 20% | Three-layer deduplication; Rwanda relevance verified per study; quality badge system; source URL checker; `ingested_at` + `source_adapter` provenance columns; auto-backup before every merge |
-| **Maintainability** | 15% | Clean `src/` core; separate `data_pipeline/` layer; 11 passing tests; `.env.example`; Render + Vercel deployment configs; documented pipeline commands |
-| **Policy Relevance** | 10% | Advocacy Brief grounded in Rwanda Vision 2050, NST1, and National Gender Policy; Source Q&A *(coming soon)* lets CSOs interrogate individual reports without reading PDFs |
+| Criterion            | Weight | How Shakisha Addresses It                                                                                                                                                                     |
+| -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Coverage**         | 30%    | 1,362 studies across 6 domains; 21 OpenAlex queries spanning all domains; NISR crawler with 111 gender/domain keywords; Tavily real-time crawl _(coming soon)_ adds live coverage on demand   |
+| **Usability**        | 25%    | Natural language search; interactive Leaflet choropleth map locked to Rwanda; domain-aware province coloring; responsive Next.js UI; quality badge on every result                            |
+| **Trustworthiness**  | 20%    | Three-layer deduplication; Rwanda relevance verified per study; quality badge system; source URL checker; `ingested_at` + `source_adapter` provenance columns; auto-backup before every merge |
+| **Maintainability**  | 15%    | Clean `src/` core; separate `data_pipeline/` layer; 11 passing tests; `.env.example`; Render + Vercel deployment configs; documented pipeline commands                                        |
+| **Policy Relevance** | 10%    | Advocacy Brief grounded in Rwanda Vision 2050, NST1, and National Gender Policy; Source Q&A _(coming soon)_ lets CSOs interrogate individual reports without reading PDFs                     |
 
 ---
 
@@ -571,19 +580,19 @@ The Imigongo geometric pattern (traditional Rwandan art) is used as a section di
 
 All endpoints are served from `http://localhost:8000` (local) or `https://shakisha-api.onrender.com` (production).
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Health check — confirms data is loaded |
-| `GET` | `/api/stats` | Catalog summary (study count, resource count, domains) |
-| `GET` | `/api/domains` | All 6 domains with name, emoji, study count, status |
-| `POST` | `/api/search` | Search studies — body: `{query, domain, sort_order, use_ai, ...}` |
-| `GET` | `/api/quality` | Full quality report for all studies |
-| `GET` | `/api/geographic` | Province + district study counts, geo resolution breakdown |
-| `GET` | `/api/districts` | All 30 districts with province and study count |
-| `GET` | `/api/pipeline` | Pipeline source status and study counts |
-| `POST` | `/api/brief` | Generate advocacy brief — body: `{study_id}` |
-| `POST` | `/api/crawl` | *(coming soon)* Tavily real-time search and ingest |
-| `POST` | `/api/ask` | *(coming soon)* Tavily source Q&A — body: `{study_id, question, source_url}` |
+| Method | Endpoint          | Description                                                                  |
+| ------ | ----------------- | ---------------------------------------------------------------------------- |
+| `GET`  | `/api/health`     | Health check — confirms data is loaded                                       |
+| `GET`  | `/api/stats`      | Catalog summary (study count, resource count, domains)                       |
+| `GET`  | `/api/domains`    | All 6 domains with name, emoji, study count, status                          |
+| `POST` | `/api/search`     | Search studies — body: `{query, domain, sort_order, use_ai, ...}`            |
+| `GET`  | `/api/quality`    | Full quality report for all studies                                          |
+| `GET`  | `/api/geographic` | Province + district study counts, geo resolution breakdown                   |
+| `GET`  | `/api/districts`  | All 30 districts with province and study count                               |
+| `GET`  | `/api/pipeline`   | Pipeline source status and study counts                                      |
+| `POST` | `/api/brief`      | Generate advocacy brief — body: `{study_id}`                                 |
+| `POST` | `/api/crawl`      | _(coming soon)_ Tavily real-time search and ingest                           |
+| `POST` | `/api/ask`        | _(coming soon)_ Tavily source Q&A — body: `{study_id, question, source_url}` |
 
 ---
 

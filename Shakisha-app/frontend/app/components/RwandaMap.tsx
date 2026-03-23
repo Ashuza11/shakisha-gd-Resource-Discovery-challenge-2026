@@ -11,7 +11,7 @@ const RwandaLeafletInner = dynamic(
     ssr: false,
     loading: () => (
       <div style={{
-        height: 580,
+        height: "clamp(320px, 55vw, 580px)",
         background: "linear-gradient(135deg, #EDE8E0 0%, #D8D0C4 100%)",
         borderRadius: 12,
         display: "flex",
@@ -101,7 +101,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
       {/* ── Leaflet map ──────────────────────────────────────────────────── */}
       <div style={{
         width: "100%",
-        height: 580,
+        height: "clamp(320px, 55vw, 580px)",
         borderRadius: 12,
         overflow: "hidden",
         boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
@@ -116,7 +116,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
       </div>
 
       {/* ── Legend ───────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: "#8A7A6A", fontWeight: 600 }}>Data gap</span>
           <div style={{ width: 180, height: 10, borderRadius: 5, background: "linear-gradient(to right, #F5EDDE, #143A24)" }} />
@@ -132,7 +132,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
       </div>
 
       {/* ── Bottom panels ────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
 
         {/* Province ranking */}
         <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}>
@@ -248,7 +248,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 20 }}>
             {/* Domain breakdown */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", marginBottom: 8 }}>
@@ -256,7 +256,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
               </div>
               {topDomains.length > 0 ? topDomains.map(([dk, cnt]) => (
                 <div key={dk} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <div style={{ width: 84, fontSize: 12, color: "var(--charcoal)", textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ width: "min(84px, 22vw)", fontSize: 12, color: "var(--charcoal)", textAlign: "right", flexShrink: 0 }}>
                     {DOMAIN_LABELS[dk] ?? dk}
                   </div>
                   <div style={{ flex: 1, height: 8, background: "#EDE8E0", borderRadius: 4 }}>
@@ -280,7 +280,7 @@ export default function RwandaMap({ provinces, districts, geoResolution, nationa
                 const maxD = Math.max(...activeDistricts.map(x => x.study_count), 1);
                 return (
                   <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                    <div style={{ width: 90, fontSize: 12, color: "var(--charcoal)", textAlign: "right", flexShrink: 0 }}>{d.name}</div>
+                    <div style={{ width: "min(90px, 22vw)", fontSize: 12, color: "var(--charcoal)", textAlign: "right", flexShrink: 0 }}>{d.name}</div>
                     <div style={{ flex: 1, height: 7, background: "#EDE8E0", borderRadius: 3 }}>
                       <div style={{
                         width: d.study_count > 0 ? `${Math.max((d.study_count / maxD) * 100, 5)}%` : "0%",

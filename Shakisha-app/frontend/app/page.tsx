@@ -538,7 +538,7 @@ export default function Home() {
             border: "1px solid var(--border)",
             borderLeft: "4px solid var(--coral)",
             borderRadius: 12,
-            padding: "36px 40px",
+            padding: "clamp(20px, 4vw, 36px) clamp(16px, 4vw, 40px)",
           }}
         >
           <p

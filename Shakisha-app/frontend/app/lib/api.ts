@@ -118,6 +118,37 @@ export interface LinkCheckResult {
   http_code: number | null;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AskResponse {
+  answer: string;
+  extracted_content: string;  // cached by client, sent back on follow-ups
+  source_used: "tavily" | "abstract";
+}
+
+export interface CrawlStudy {
+  study_id: string;
+  title: string;
+  url: string;
+  abstract: string;
+  organization: string;
+  year: string;
+  source_adapter: string;
+  is_new: boolean;
+}
+
+export interface CrawlResult {
+  new_count: number;
+  duplicate_count: number;
+  total_found: number;
+  studies: CrawlStudy[];
+  source: string;
+  catalog_total: number;
+}
+
 export interface PipelineSource {
   key: string;
   name: string;
@@ -218,6 +249,22 @@ export const api = {
 
   linkCheck: (study_ids: string[]) =>
     post<{ results: LinkCheckResult[] }>("/link-check", { study_ids }),
+
+  ask: (
+    study_id: string,
+    question: string,
+    conversation_history: ChatMessage[],
+    extracted_content?: string,
+  ) =>
+    post<AskResponse>("/ask", {
+      study_id,
+      question,
+      conversation_history,
+      extracted_content: extracted_content ?? null,
+    }),
+
+  crawl: (source: string, year_from?: number) =>
+    post<CrawlResult>("/crawl", { source, year_from: year_from ?? null }),
 
   pipeline: () => get<PipelineStatus>("/pipeline"),
 

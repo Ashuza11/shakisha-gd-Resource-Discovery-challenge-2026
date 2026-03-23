@@ -20,8 +20,8 @@ def _get_client() -> anthropic.Anthropic:
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. "
-            "Add it to your .env file or export it in your shell."
+            "AI features are not available at this time. "
+            "Please contact the Shakisha team or try again later."
         )
     # Always create a fresh client — avoids stale key after .env changes
     if _client is None:

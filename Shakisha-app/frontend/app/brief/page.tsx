@@ -43,7 +43,7 @@ function BriefContent() {
       setBrief(r.brief);
       setStudy(r.study);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Brief generation failed.");
+      setError(e instanceof Error ? e.message : "Something went wrong while generating your brief. Please try again.");
     } finally {
       setGenerating(false);
     }

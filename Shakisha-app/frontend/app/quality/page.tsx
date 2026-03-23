@@ -175,7 +175,7 @@ export default function QualityPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter by title…"
-              style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--cream)", fontSize: 13, width: 220 }}
+              style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--cream)", fontSize: 13, width: "min(220px, 100%)", minWidth: 120 }}
             />
             {(["all", "good", "warning", "critical"] as const).map((q) => (
               <button
@@ -289,7 +289,8 @@ export default function QualityPage() {
           </div>
 
           {checkResults.length > 0 && (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 500 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--muted)", textAlign: "left" }}>
                   <th style={{ padding: "8px 12px" }}>Study</th>
@@ -315,6 +316,7 @@ export default function QualityPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

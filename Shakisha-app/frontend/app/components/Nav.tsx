@@ -29,7 +29,7 @@ export default function Nav() {
   return (
     <>
       {/* ── Top bar ─────────────────────────────────────────── */}
-      <header style={{ background: "var(--warm-white)", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, zIndex: 200 }}>
+      <header style={{ background: "var(--warm-white)", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, zIndex: 1100 }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
 
           {/* Logo */}
@@ -92,7 +92,7 @@ export default function Nav() {
           top: 0,
           right: 0,
           height: "100dvh",
-          width: 270,
+          width: "min(270px, 88vw)",
           background: "var(--warm-white)",
           zIndex: 202,
           boxShadow: "-4px 0 32px rgba(0,0,0,0.15)",

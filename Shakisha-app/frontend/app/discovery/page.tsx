@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, Study, DomainConfig, QualityLevel } from "../lib/api";
+import dynamic from "next/dynamic";
+
+const SourceChatModal = dynamic(() => import("../components/SourceChatModal"), { ssr: false });
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -36,10 +39,12 @@ function StudyCard({
   study,
   query,
   onBrief,
+  onAsk,
 }: {
   study: Study;
   query: string;
   onBrief: (id: string) => void;
+  onAsk: (study: Study) => void;
 }) {
   const badge = QUALITY_BADGE[study.quality_level] ?? QUALITY_BADGE.warning;
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -167,6 +172,13 @@ function StudyCard({
         <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setShowCitation(!showCitation)}>
           {showCitation ? "Hide citation" : "Citation"}
         </button>
+        <button
+          className="btn-ghost"
+          style={{ fontSize: 12, color: "var(--coral)", borderColor: "rgba(192,79,79,0.3)" }}
+          onClick={() => onAsk(study)}
+        >
+          Ask about this source
+        </button>
         <button className="btn-primary" style={{ marginLeft: "auto" }} onClick={() => onBrief(study.study_id)}>
           Generate brief →
         </button>
@@ -194,6 +206,7 @@ function DiscoveryContent() {
   const [orgs, setOrgs]               = useState<string[]>([]);
   const [districts, setDistricts]     = useState<string[]>([]);
   const [resourceTypes, setResourceTypes] = useState<string[]>([]);
+  const [chatStudy, setChatStudy]     = useState<Study | null>(null);
   const [selectedDomain, setSelectedDomain] = useState(initialDomain);
   const [query, setQuery]             = useState(initialQuery);
   const [inputValue, setInputValue]   = useState(initialQuery);
@@ -273,6 +286,7 @@ function DiscoveryContent() {
   const domainCfg = domains[selectedDomain];
 
   return (
+    <>
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
       <div className="page-wrap">
 
@@ -472,6 +486,7 @@ function DiscoveryContent() {
                 study={study}
                 query={query}
                 onBrief={handleBrief}
+                onAsk={setChatStudy}
               />
             ))}
 
@@ -491,6 +506,15 @@ function DiscoveryContent() {
         )}
       </div>
     </div>
+
+    {/* Source chat modal */}
+    {chatStudy && (
+      <SourceChatModal
+        study={chatStudy}
+        onClose={() => setChatStudy(null)}
+      />
+    )}
+    </>
   );
 }
 

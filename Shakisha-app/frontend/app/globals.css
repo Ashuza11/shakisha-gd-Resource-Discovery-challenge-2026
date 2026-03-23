@@ -535,3 +535,99 @@ h1, h2, h3 {
     padding: 16px 12px;
   }
 }
+
+/* ── Extra mobile helpers ──────────────────────────────────────────────────── */
+
+/* Scrollable table wrapper — used on quality and other table pages */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Card section padding that scales down on small phones */
+.section-card {
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+@media (max-width: 480px) {
+  .section-card {
+    padding: 16px 14px;
+    border-radius: 8px;
+  }
+}
+
+/* Two-col stat grids collapse to 2-up on mobile then 1-col on xs */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+/* Chip / filter button rows — wrap tightly on mobile */
+.chip-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Action button rows on cards — stack on very small screens */
+@media (max-width: 400px) {
+  .card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .card-actions > * {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Map panel padding — tight on mobile */
+@media (max-width: 768px) {
+  .map-panel {
+    padding: 16px 16px 14px !important;
+  }
+}
+@media (max-width: 480px) {
+  .map-panel {
+    padding: 12px 10px 10px !important;
+  }
+}
+
+/* Chart containers — prevent x-axis labels from overflowing */
+@media (max-width: 480px) {
+  .recharts-wrapper {
+    font-size: 10px !important;
+  }
+}
+
+/* How-it-works step grid */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+}
+@media (max-width: 480px) {
+  .steps-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Modal sizing — respect mobile viewport + software keyboard */
+.chat-modal {
+  width: min(680px, 96vw);
+  height: min(680px, 88dvh);
+}
+@media (max-width: 480px) {
+  .chat-modal {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+  }
+}

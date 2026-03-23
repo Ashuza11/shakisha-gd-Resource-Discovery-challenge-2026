@@ -22,7 +22,7 @@ from pydantic import BaseModel
 
 load_dotenv(override=True)
 
-from src.ai import advocacy_brief, explain_study, interpret_query
+from src.ai import advocacy_brief, explain_study, interpret_query, _get_client
 from src.domains import DOMAINS, get_active_domains
 from src.filters import apply_study_filters, filter_resources_by_type
 from src.link_checker import check_url
@@ -51,7 +51,7 @@ except Exception as e:
 
 def _require_data():
     if not _data_ok:
-        raise HTTPException(status_code=503, detail="Data not loaded. Check data/ directory.")
+        raise HTTPException(status_code=503, detail="The catalog is currently unavailable. Please try again in a moment.")
 
 
 # ── Request / Response models ──────────────────────────────────────────────────
@@ -337,7 +337,7 @@ def get_study(study_id: str):
     _require_data()
     row = _studies[_studies["study_id"].astype(str) == study_id]
     if row.empty:
-        raise HTTPException(status_code=404, detail="Study not found")
+        raise HTTPException(status_code=404, detail="This study could not be found. It may have been removed or the link may be incorrect.")
     return _serialise_study(row.iloc[0].to_dict())
 
 
@@ -381,15 +381,15 @@ def generate_brief(req: BriefRequest):
         raise HTTPException(
             status_code=503,
             detail=(
-                "AI brief generation requires an Anthropic API key. "
-                "Add ANTHROPIC_API_KEY to your .env file or environment to enable this feature. "
-                "All discovery, quality, and analytics features work without a key."
+                "AI brief generation is not available at this time. "
+                "Please contact the Shakisha team or try again later. "
+                "All discovery, quality, and analytics features are still fully available."
             ),
         )
 
     row = _studies[_studies["study_id"].astype(str) == req.study_id]
     if row.empty:
-        raise HTTPException(status_code=404, detail="Study not found")
+        raise HTTPException(status_code=404, detail="This study could not be found. It may have been removed or the link may be incorrect.")
 
     study_row = row.iloc[0].to_dict()
     resources = _resources[_resources["study_id"].astype(str) == req.study_id].to_dict("records")
@@ -403,8 +403,8 @@ def generate_brief(req: BriefRequest):
     try:
         brief = advocacy_brief(study_row, resources)
         return {"brief": brief, "study": _serialise_study(study_row)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Something went wrong while generating your brief. Please try again.")
 
 
 @app.post("/api/explain")
@@ -414,20 +414,20 @@ def explain(req: ExplainRequest):
         raise HTTPException(
             status_code=503,
             detail=(
-                "AI explanations require an Anthropic API key. "
-                "Add ANTHROPIC_API_KEY to your .env file or environment to enable this feature."
+                "AI explanations are not available at this time. "
+                "Please contact the Shakisha team or try again later."
             ),
         )
 
     row = _studies[_studies["study_id"].astype(str) == req.study_id]
     if row.empty:
-        raise HTTPException(status_code=404, detail="Study not found")
+        raise HTTPException(status_code=404, detail="This study could not be found. It may have been removed or the link may be incorrect.")
 
     try:
         explanation = explain_study(row.iloc[0].to_dict(), req.query)
         return {"explanation": explanation}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Something went wrong while generating the explanation. Please try again.")
 
 
 @app.post("/api/link-check")
@@ -779,4 +779,314 @@ def pipeline_status():
         "active_sources":   sum(1 for s in sources_out if s["active"]),
         "new_today":        new_today,
         "recently_added":   recent,
+    }
+
+
+# ── On-demand crawl via Tavily ──────────────────────────────────────────────────
+
+_CRAWL_SOURCE_DOMAINS: dict[str, list[str]] = {
+    "nisr":      ["statistics.gov.rw", "microdata.statistics.gov.rw"],
+    "worldbank": ["data.worldbank.org", "openknowledge.worldbank.org"],
+    "ilo":       ["ilostat.ilo.org", "ilo.org"],
+    "openalex":  ["openalex.org"],
+}
+
+_CRAWL_QUERIES = [
+    "Rwanda gender women statistics survey data",
+    "Rwanda female employment labour force gender disaggregated data",
+    "Rwanda women health education gender data report",
+    "Rwanda gender parity evidence policy statistics",
+]
+
+# Countries whose mere name in the title signals an off-topic result
+_EXCLUDE_COUNTRIES = {"tanzania", "uganda", "burundi", "kenya", "ethiopia",
+                      "nigeria", "ghana", "senegal", "malawi", "zambia"}
+
+
+class CrawlRequest(BaseModel):
+    source: str = "all"
+    year_from: Optional[int] = None
+
+
+@app.post("/api/crawl")
+def crawl(req: CrawlRequest):
+    """On-demand catalog update powered by Tavily web search.
+
+    Searches trusted sources for Rwanda gender data not yet in the catalog,
+    validates Rwanda + gender relevance, deduplicates, and persists new rows.
+    """
+    import hashlib
+    import re
+    import requests as _req
+    import pandas as pd
+    from datetime import date as _date
+
+    tavily_key = os.getenv("TAVILY_API_KEY", "").strip()
+    if not tavily_key:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "On-demand crawling is not available right now. "
+                "The platform administrator needs to enable this feature before it can be used. "
+                "Please contact the Shakisha team or try again later."
+            ),
+        )
+
+    if req.source not in ("all", *_CRAWL_SOURCE_DOMAINS):
+        raise HTTPException(status_code=400, detail="Invalid source selected. Please refresh the page and try again.")
+
+    include_domains = (
+        [d for domains in _CRAWL_SOURCE_DOMAINS.values() for d in domains]
+        if req.source == "all"
+        else _CRAWL_SOURCE_DOMAINS[req.source]
+    )
+
+    # Load existing catalog for deduplication
+    studies_path = _FULL_DIR / "studies.csv"
+    existing_df = pd.read_csv(studies_path, dtype=str) if studies_path.exists() else pd.DataFrame()
+    existing_urls = (
+        set(existing_df["url"].fillna("").str.strip().tolist())
+        if not existing_df.empty and "url" in existing_df.columns else set()
+    )
+    existing_titles_lower = (
+        set(existing_df["title"].fillna("").str.strip().str.lower().tolist())
+        if not existing_df.empty and "title" in existing_df.columns else set()
+    )
+
+    # Build queries — append year constraint when requested
+    year_suffix = f" {req.year_from}" if req.year_from else ""
+    queries = [q + year_suffix for q in _CRAWL_QUERIES[:3]]
+
+    found: list[dict] = []
+    seen_urls: set[str] = set()
+
+    for query in queries:
+        try:
+            resp = _req.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": tavily_key,
+                    "query": query,
+                    "search_depth": "advanced",
+                    "include_domains": include_domains,
+                    "max_results": 10,
+                    "include_answer": False,
+                    "include_raw_content": False,
+                },
+                timeout=25,
+            )
+            if resp.status_code != 200:
+                continue
+            for result in resp.json().get("results", []):
+                url   = (result.get("url")   or "").strip()
+                title = (result.get("title") or "").strip()
+                if not url or not title or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+
+                content  = (result.get("content") or "").lower()
+                combined = (title + " " + content).lower()
+
+                # Must mention Rwanda
+                if "rwanda" not in combined:
+                    continue
+
+                # Must mention gender / women
+                if not any(w in combined for w in
+                           ("gender", "women", "female", "girl", "femme", "fille", "genre")):
+                    continue
+
+                # Title must not be primarily about another country
+                title_lower = title.lower()
+                if any(c in title_lower for c in _EXCLUDE_COUNTRIES):
+                    continue
+
+                is_new = (
+                    url not in existing_urls
+                    and title.lower() not in existing_titles_lower
+                )
+
+                # Map URL to source adapter label
+                source_adapter = "tavily"
+                for src_key, domains in _CRAWL_SOURCE_DOMAINS.items():
+                    if any(d in url for d in domains):
+                        source_adapter = f"tavily_{src_key}"
+                        break
+
+                year_match = re.search(r'\b(20\d{2})\b', content)
+                year = year_match.group(1) if year_match else ""
+
+                study_id = "tv_" + hashlib.md5(url.encode()).hexdigest()[:10]
+
+                found.append({
+                    "study_id":          study_id,
+                    "title":             title,
+                    "url":               url,
+                    "abstract":          (result.get("content") or "")[:500],
+                    "organization":      "",
+                    "year":              year,
+                    "source_adapter":    source_adapter,
+                    "geographic_coverage": "Rwanda",
+                    "geographic_unit":   "national",
+                    "is_new":            is_new,
+                })
+        except Exception:
+            continue
+
+    # Persist new studies to the live catalog
+    new_studies = [s for s in found if s["is_new"]]
+    if new_studies:
+        today = str(_date.today())
+        new_rows = [{k: v for k, v in s.items() if k != "is_new"} | {"ingested_at": today}
+                    for s in new_studies]
+        new_df = pd.DataFrame(new_rows)
+        merged = (
+            pd.concat([existing_df, new_df], ignore_index=True)
+            .drop_duplicates(subset=["study_id"], keep="first")
+            if not existing_df.empty
+            else new_df
+        )
+        merged.to_csv(studies_path, index=False)
+
+        # Hot-reload global state so next search reflects new studies
+        global _studies, _resources, _quality, _domain_counts, _data_ok
+        try:
+            _studies, _resources, _quality = load_all_data()
+            _domain_counts = compute_domain_study_counts(_studies)
+            _data_ok = True
+        except Exception:
+            pass
+
+    return {
+        "new_count":       len(new_studies),
+        "duplicate_count": len(found) - len(new_studies),
+        "total_found":     len(found),
+        "studies":         found,
+        "source":          req.source,
+        "catalog_total":   len(existing_df) + len(new_studies),
+    }
+
+
+# ── Source document chat via Tavily Extract + Claude ───────────────────────────
+
+class AskRequest(BaseModel):
+    study_id: str
+    question: str
+    conversation_history: list[dict] = []
+    extracted_content: Optional[str] = None  # client sends back cached content on follow-ups
+
+
+@app.post("/api/ask")
+def ask(req: AskRequest):
+    """RAG-style chat about a specific study.
+
+    First call: Tavily extracts the source URL, chunks are ranked by the question.
+    Follow-up calls: client sends back extracted_content, skipping Tavily entirely.
+    Falls back to the catalog abstract when the URL is a PDF or extraction fails.
+    """
+    import requests as _req
+
+    _require_data()
+
+    if not os.getenv("ANTHROPIC_API_KEY", "").strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI chat is not available at this time. Please contact the Shakisha team or try again later.",
+        )
+
+    # Look up the study
+    row = _studies[_studies["study_id"].astype(str) == req.study_id]
+    if row.empty:
+        raise HTTPException(
+            status_code=404,
+            detail="This study could not be found. It may have been removed or the link may be incorrect.",
+        )
+    study = row.iloc[0].to_dict()
+
+    def _clean(v: object) -> str:
+        s = str(v or "").strip()
+        return "" if s in ("nan", "None") else s
+
+    title    = _clean(study.get("title", ""))
+    abstract = _clean(study.get("abstract", ""))
+    url      = _clean(study.get("url", ""))
+
+    # ── Step 1: get source content (Tavily or abstract fallback) ──────────────
+    extracted_content = req.extracted_content
+    source_used = "tavily"
+
+    if not extracted_content:
+        tavily_key = os.getenv("TAVILY_API_KEY", "").strip()
+        is_pdf = url.lower().endswith(".pdf")
+
+        if tavily_key and url and not is_pdf:
+            try:
+                resp = _req.post(
+                    "https://api.tavily.com/extract",
+                    json={
+                        "api_key":          tavily_key,
+                        "urls":             [url],
+                        "query":            req.question,   # reranks chunks by relevance
+                        "chunks_per_source": 5,
+                        "extract_depth":    "basic",
+                        "format":           "markdown",
+                        "include_usage":    False,
+                    },
+                    timeout=20,
+                )
+                if resp.status_code == 200:
+                    results = resp.json().get("results", [])
+                    if results and results[0].get("raw_content"):
+                        extracted_content = results[0]["raw_content"][:4000]
+            except Exception:
+                pass
+
+        if not extracted_content:
+            # Graceful fallback: use the catalog abstract
+            extracted_content = abstract or f"No detailed content available for: {title}"
+            source_used = "abstract"
+
+    # ── Step 2: build Claude prompt ────────────────────────────────────────────
+    system_prompt = f"""You are a helpful research assistant for Shakisha, a gender data discovery platform for Rwanda.
+A Civil Society Organisation (CSO) is asking you questions about a specific study from Rwanda's data catalog.
+
+Study title: {title}
+Source URL: {url or "not available"}
+
+Use ONLY the source content provided below to answer the question. Do not invent facts.
+If the content does not contain the answer, say so clearly and suggest the user visit the source directly.
+Keep answers concise, factual, and helpful for advocacy purposes.
+
+--- SOURCE CONTENT ---
+{extracted_content}
+--- END SOURCE CONTENT ---"""
+
+    # Build message list for Claude
+    messages: list[dict] = []
+    for msg in req.conversation_history:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": req.question})
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=800,
+            system=system_prompt,
+            messages=messages,
+        )
+        answer = response.content[0].text
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Something went wrong while generating your answer. Please try again.",
+        )
+
+    return {
+        "answer":            answer,
+        "extracted_content": extracted_content,
+        "source_used":       source_used,
     }
